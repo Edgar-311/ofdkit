@@ -1,0 +1,32 @@
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "ofdkit"
+version = "0.1.0.dev0"
+description = "Read OFD documents (GB/T 33190) and Chinese e-invoices: text, invoice fields, and AI tool integrations."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+maintainers = [{ name = "Edgar-311" }]
+keywords = ["ofd", "gb/t 33190", "e-invoice", "fapiao", "电子发票", "数电票", "mcp"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Chinese (Simplified)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Office/Business :: Financial :: Accounting",
+    "Topic :: Text Processing",
+]
+dependencies = []
+
+[project.scripts]
+ofdkit = "ofdkit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Edgar-311/ofdkit"
+Issues = "https://github.com/Edgar-311/ofdkit/issues"
