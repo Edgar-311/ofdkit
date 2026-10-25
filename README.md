@@ -13,3 +13,7 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
   Reads OFD only. It never creates or modifies invoices.
 - 本项目大部分代码由 AI（Claude）编写，维护者负责决定方向和批准发布。
   Most code is written with AI assistance (Claude). The maintainer sets the direction and approves releases.
+
+## 许可证 / License
+
+[Apache-2.0](LICENSE)
