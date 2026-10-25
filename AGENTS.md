@@ -76,7 +76,8 @@ anything public or irreversible; otherwise make sensible decisions and report th
       `package.py`
 - [x] Text extraction in reading order (`layout.py`)
 - [x] Invoice fields from XML attachments, custom tags and OFD.xml CustomData (`invoice.py`)
-- [ ] CLI commands: info, text, invoice, batch
+- [x] CLI commands: info, text, invoice, batch (`cli.py`; batch writes UTF-8 CSV with a
+      BOM for Excel and flags duplicate invoice numbers)
 - [ ] MCP server, Agent Skill, MarkItDown plugin
 - [ ] v0.1.0 release
 
