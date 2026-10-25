@@ -52,7 +52,7 @@ anything public or irreversible; otherwise make sensible decisions and report th
   integrations (MCP, MarkItDown).
 - Layout: `src/ofdkit/` for the package, `tests/` for unittest tests.
 - Set up: `uv venv && uv pip install -e .`
-- Test: `python -m unittest discover -s tests -v`
+- Test: `python -m unittest discover -s tests -t . -v`
 - Build: `uv build`
 - CI runs the tests on Linux (3.10, 3.12, 3.14), Windows and macOS (3.12). Keep paths and
   text encodings platform-neutral: always open text files with `encoding="utf-8"`.
@@ -71,9 +71,32 @@ anything public or irreversible; otherwise make sensible decisions and report th
 ## Status
 
 - [x] Repository, license (Apache-2.0), package skeleton, CI
-- [ ] OFD container and document model (OFD.xml, Document.xml, pages, templates, resources)
-- [ ] Text extraction in reading order
-- [ ] Invoice fields via custom tags (Tags/CustomTags.xml)
+- [x] OFD container and document model (OFD.xml, Document.xml, pages, templates,
+      composite graphic units), tolerant of the producer bugs listed in `_xml.py` and
+      `package.py`
+- [x] Text extraction in reading order (`layout.py`)
+- [x] Invoice fields from XML attachments, custom tags and OFD.xml CustomData (`invoice.py`)
 - [ ] CLI commands: info, text, invoice, batch
 - [ ] MCP server, Agent Skill, MarkItDown plugin
 - [ ] v0.1.0 release
+
+Known gaps, in rough order of value:
+
+- Multi-column pages come out line by line across both columns (columns are separated
+  by three spaces). Column detection would fix this.
+- Vertical labels (one character per line, as on invoice templates) interleave with the
+  text beside them.
+- Text drawn as vector paths or images has no text to extract; that needs OCR, which is
+  out of scope.
+
+## Checking against real files
+
+Real OFD files must never be committed (rule 2). For local checks, public test files
+from Apache-2.0 projects such as [ofdrw](https://github.com/ofdrw/ofdrw) can be fetched
+into a scratch directory outside the repository:
+
+    git clone --depth 1 --filter=blob:none --no-checkout https://github.com/ofdrw/ofdrw
+    git -C ofdrw sparse-checkout set --no-cone '*.ofd' && git -C ofdrw checkout
+
+Then open every file with ofdkit and check that all open, that text runs fall inside
+their page boxes, and that invoices yield fields. Last run: 77 files, all opened.
