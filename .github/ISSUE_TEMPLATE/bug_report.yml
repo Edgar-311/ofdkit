@@ -1,0 +1,53 @@
+name: 读取出错 / Bug report
+description: 某个 OFD 文件读不出来、读错了，或者程序报错。A file is read wrongly or ofdkit fails.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请不要上传真实的发票或文件。** 发票里有姓名、税号、金额等信息。
+        请用下面的命令导出文件结构，文字会全部打码（汉字变成"字"，数字变成"0"），只保留结构和位置：
+        **Please do not upload real invoices or documents.** Export the structure instead; all text is masked:
+
+        ```bash
+        ofdkit describe 你的文件.ofd -o 结构.json
+        ```
+
+        打开 `结构.json` 确认没有不想公开的内容，然后把它拖到下面"结构文件"的框里。
+        Check `结构.json`, then drag it into the "Structure" box below.
+  - type: input
+    id: version
+    attributes:
+      label: ofdkit 版本 / Version
+      description: "`ofdkit --version` 的输出 / output of `ofdkit --version`"
+      placeholder: ofdkit 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: 运行的命令 / Command
+      placeholder: ofdkit invoice 发票.ofd
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 / What happened
+      description: 报错信息，或者哪里读错了。请把真实的号码、名字换成"某某"。Error message or what was wrong; replace real numbers and names.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / What you expected
+  - type: textarea
+    id: structure
+    attributes:
+      label: 结构文件 / Structure
+      description: 把 `ofdkit describe` 生成的 JSON 文件拖到这里。Drag the JSON file from `ofdkit describe` here.
+  - type: input
+    id: producer
+    attributes:
+      label: 文件来源 / Where the file came from
+      description: 例如"电子税务局下载的数电票"、"某软件导出"。不需要写公司名。For example "数电票 downloaded from the tax portal".

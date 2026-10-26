@@ -1,0 +1,19 @@
+name: 功能建议 / Feature request
+description: 希望 ofdkit 增加的功能。Something you would like ofdkit to do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: 你想做什么 / What you want to do
+      description: 说说你的使用场景，比如"每个月要把几百张发票整理成报销表"。Describe the task, not only the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎么实现 / How it could work
+  - type: markdown
+    attributes:
+      value: |
+        ofdkit 只读取 OFD 文件，不会生成或修改发票。ofdkit only reads OFD files; it will not create or change invoices.

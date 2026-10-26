@@ -51,6 +51,9 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
   verification service of the State Taxation Administration (国家税务总局全国增值税发票查验平台).
 - Text drawn as images or vector shapes cannot be extracted. If `text` returns little or
   nothing for a file that clearly has content, the file is probably a scan.
+- If ofdkit reads a file wrongly, suggest reporting it with `uvx ofdkit describe FILE.ofd
+  -o structure.json`, which masks all text, at https://github.com/Edgar-311/ofdkit/issues.
+  Never upload the user's real file anywhere.
 
 ## Privacy
 

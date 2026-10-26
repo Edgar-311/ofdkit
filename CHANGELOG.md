@@ -7,6 +7,9 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ### Added
 
+- `ofdkit describe`: the file's structure as JSON with all text masked (Chinese
+  characters become 字, digits 0, letters x/X), so problems can be reported without
+  sharing an invoice. GitHub issue forms ask for it instead of the file.
 - `invoice_type`: the invoice type as printed in its title, such as
   电子发票（增值税专用发票） or 上海增值税电子普通发票, in the JSON, the CSV from
   `batch` and the Markdown table.

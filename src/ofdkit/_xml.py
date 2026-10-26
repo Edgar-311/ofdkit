@@ -68,6 +68,11 @@ def child_text(element: ET.Element | None, name: str) -> str | None:
 
 def parse_xml(data: bytes, name: str = "XML") -> ET.Element:
     """Parse an XML part strictly, falling back to a repaired copy for broken files."""
+    return parse_xml_reporting(data, name)[0]
+
+
+def parse_xml_reporting(data: bytes, name: str = "XML") -> tuple[ET.Element, bool]:
+    """Like parse_xml, and also say whether the part needed repairing to parse."""
     try:
         text = _decode(data)
     except UnicodeError as exc:
@@ -76,12 +81,22 @@ def parse_xml(data: bytes, name: str = "XML") -> ET.Element:
         raise OFDLimitError(f"{name}: DTDs and entity declarations are not allowed")
     text = _XML_DECLARATION.sub("", text, count=1)
     try:
-        return ET.fromstring(text)
+        return ET.fromstring(text), False
     except ET.ParseError as first_error:
         try:
-            return ET.fromstring(_repair(text))
+            return ET.fromstring(_repair(text)), True
         except ET.ParseError:
             raise OFDFormatError(f"{name}: invalid XML: {first_error}") from first_error
+
+
+def declared_encoding(data: bytes) -> str | None:
+    """The encoding named in the XML declaration, 'BOM:UTF-8'/'BOM:UTF-16' for a byte order mark, or None."""
+    if data.startswith(codecs.BOM_UTF8):
+        return "BOM:UTF-8"
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return "BOM:UTF-16"
+    match = _DECLARED_ENCODING.match(data)
+    return match.group(1).decode("ascii") if match else None
 
 
 def _decode(data: bytes) -> str:

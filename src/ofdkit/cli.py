@@ -50,6 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("-o", "--output", help="CSV file to write (UTF-8 with BOM, so Excel shows Chinese correctly)")
     batch.add_argument("-r", "--recursive", action="store_true", help="also look in subfolders")
 
+    describe = commands.add_parser(
+        "describe", help="print the file's structure as JSON with all text masked, for bug reports"
+    )
+    describe.add_argument("file", help="OFD file")
+    describe.add_argument("-o", "--output", help="write to this file (UTF-8) instead of the screen")
+
     mcp = commands.add_parser("mcp", help='run an MCP server over stdio for AI tools (needs "ofdkit[mcp]")')
     mcp.add_argument("--root", help="only allow reading files inside this folder")
     return parser
@@ -62,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return EXIT_OK
-    commands = {"info": _info, "text": _text, "invoice": _invoice, "batch": _batch, "mcp": _mcp}
+    commands = {"info": _info, "text": _text, "invoice": _invoice, "batch": _batch, "describe": _describe, "mcp": _mcp}
     try:
         return commands[args.command](args)
     except (OFDError, OSError) as exc:
@@ -155,6 +161,18 @@ def _batch(args: argparse.Namespace) -> int:
         f"total_amount sum {totals['total_amount_sum']}",
         file=sys.stderr,
     )
+    return EXIT_OK
+
+
+def _describe(args: argparse.Namespace) -> int:
+    from .describe import describe
+
+    text = json.dumps(describe(args.file), ensure_ascii=False, indent=1)
+    if args.output:
+        Path(args.output).write_text(text + "\n", encoding="utf-8")
+        print(f"ofdkit: wrote {args.output}. Text is masked; please check the file before sharing it.", file=sys.stderr)
+    else:
+        print(text)
     return EXIT_OK
 
 

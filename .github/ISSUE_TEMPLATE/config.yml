@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 需要某种结构的测试文件 / Need a test file of some structure
+    url: https://github.com/Edgar-311/ofd-samples/issues
+    about: 在 ofd-samples 里提出，说明需要的结构。Ask in ofd-samples, describing the structure.
