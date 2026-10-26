@@ -114,10 +114,10 @@ environment `pypi`.
 
 Known gaps, in rough order of value:
 
-- Multi-column pages come out line by line across both columns (columns are separated
-  by three spaces). Column detection would fix this.
-- Vertical labels (one character per line, as on invoice templates) interleave with the
-  text beside them.
+- Reading order is heuristic (`layout.py` explains the steps and thresholds). Known
+  misses: complex magazine layouts with three or more columns around pictures, vertical
+  labels whose characters sit more than 3 font sizes apart (备注 on some older invoices),
+  and rotated text.
 - Text drawn as vector paths or images has no text to extract; that needs OCR, which is
   out of scope.
 

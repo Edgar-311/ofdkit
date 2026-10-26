@@ -5,6 +5,13 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Changed
+
+- Better reading order. Vertical labels written one character per line, such as
+  购买方信息 and 备注 on e-invoices, are read as words instead of being scattered over
+  the lines beside them. Pages with columns of prose are read column by column; tables
+  are still read row by row.
+
 ## [0.1.0] - 2026-10-26
 
 First release.
