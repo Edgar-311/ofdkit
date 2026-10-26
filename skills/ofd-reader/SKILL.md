@@ -23,9 +23,6 @@ If `uvx` is missing, install once with `pip install ofdkit` and call `ofdkit ...
 `python -m ofdkit ...`). If neither works, tell the user that ofdkit needs Python 3.10+
 and either uv or pip.
 
-If `uvx ofdkit` reports that no such package exists, ofdkit is not on PyPI yet; use
-`uvx --from git+https://github.com/Edgar-311/ofdkit ofdkit ...` instead.
-
 ## Tasks
 
 | The user wants | Run |

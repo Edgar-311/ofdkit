@@ -5,6 +5,8 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-26
+
 First release.
 
 ### Added
@@ -22,3 +24,6 @@ First release.
   folder restriction.
 - MarkItDown plugin (`pip install "ofdkit[markitdown]"`).
 - The `ofd-reader` Agent Skill.
+
+[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Edgar-311/ofdkit/releases/tag/v0.1.0

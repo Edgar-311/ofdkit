@@ -4,8 +4,8 @@
 
 A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese fixed-layout format used for e-invoices and official documents): extract text and invoice fields, and use them from AI tools.
 
-> 状态：开发中，0.1.0 还没有发布，可以先从 GitHub 安装试用。
-> Status: under development. 0.1.0 is not released yet; install from GitHub to try it.
+> 状态：0.1 版，接口以后可能还会调整。更新记录见 [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md)。
+> Status: 0.1, the API may still change. See the [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md).
 
 ## 能做什么 / What it does
 
@@ -23,7 +23,7 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
 需要 Python 3.10 或更新版本。Requires Python 3.10+.
 
 ```bash
-pip install "git+https://github.com/Edgar-311/ofdkit"
+pip install ofdkit
 ```
 
 ## 命令行 / Command line
@@ -106,13 +106,13 @@ command = "uvx"
 args = ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
 ```
 
-加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。在 0.1.0 发布到 PyPI 之前，把 `ofdkit[mcp]` 换成 `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`。
-Add `--root FOLDER` to allow only files inside that folder. Until 0.1.0 is on PyPI, replace `ofdkit[mcp]` with `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`.
+加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。
+Add `--root FOLDER` to allow only files inside that folder.
 
 ### Agent Skill
 
-[`skills/ofd-reader`](skills/ofd-reader/SKILL.md) 告诉 AI 什么时候、怎么用 ofdkit 命令行，适用于支持 [Agent Skills](https://agentskills.io) 的工具。把这个文件夹复制到：
-[`skills/ofd-reader`](skills/ofd-reader/SKILL.md) tells an AI agent when and how to use the ofdkit command line. Copy the folder to:
+[`skills/ofd-reader`](https://github.com/Edgar-311/ofdkit/tree/main/skills/ofd-reader) 告诉 AI 什么时候、怎么用 ofdkit 命令行，适用于支持 [Agent Skills](https://agentskills.io) 的工具。把这个文件夹复制到：
+[`skills/ofd-reader`](https://github.com/Edgar-311/ofdkit/tree/main/skills/ofd-reader) tells an AI agent when and how to use the ofdkit command line. Copy the folder to:
 
 - Claude Code: `~/.claude/skills/ofd-reader/`
 - Codex: `~/.codex/skills/ofd-reader/`
@@ -157,4 +157,4 @@ with ofdkit.open("发票.ofd") as doc:
 
 ## 许可证 / License
 
-[Apache-2.0](LICENSE)
+[Apache-2.0](https://github.com/Edgar-311/ofdkit/blob/main/LICENSE)
