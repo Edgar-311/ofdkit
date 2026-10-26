@@ -35,9 +35,16 @@ jobs:
       - name: Install
         run: python -m pip install .
       - name: Test
+        shell: bash
         env:
           OFD_SAMPLES_DIR: ofd-samples
-        run: python -m unittest discover -s tests -t . -v
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -t . -v 2>&1 | tee test-output.txt
+      - name: Show failures on the summary page
+        if: failure()
+        run: python .github/scripts/annotate_failures.py test-output.txt
 
   # The MCP server and MarkItDown plugin need optional dependencies; test them too.
   extras:
@@ -55,4 +62,12 @@ jobs:
         # openpyxl only checks that the Excel files ofdkit writes read back.
         run: python -m pip install ".[mcp,markitdown]" openpyxl
       - name: Test
-        run: python -m unittest discover -s tests -t . -v
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -t . -v 2>&1 | tee test-output.txt
+      - name: Show failures on the summary page
+        if: failure()
+        run: python .github/scripts/annotate_failures.py test-output.txt

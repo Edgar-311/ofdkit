@@ -109,7 +109,9 @@ class InProcessTest(_Files):
         self.assertEqual(listing["summary"]["invoices"], 3)
         self.assertEqual(listing["summary"]["duplicates"], 2)
         self.assertEqual(listing["summary"]["total_amount_sum_without_duplicates"], "106.00")
-        self.assertIn(str(archive / "a.ofd"), [row["file"] for row in listing["rows"]])
+        # The server resolves the folder, which on Windows can expand a short temp path.
+        inside = str(Path("下载.zip") / "a.ofd")
+        self.assertTrue(any(row["file"].endswith(inside) for row in listing["rows"]), listing["rows"])
         with mock.patch.object(mcp_server, "MAX_BATCH_FILES", 2):
             listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
         self.assertTrue(listing["truncated"])
