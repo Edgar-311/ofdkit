@@ -9,6 +9,20 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ### Added
 
+- Excel output: `ofdkit batch FOLDER -o 发票汇总.xlsx` writes a workbook, still with only
+  the standard library. Invoice numbers, codes and tax IDs stay text (in a CSV, Excel
+  turns a 20-digit 数电票 number into 2.4E+19), amounts are numbers and dates are
+  dates. A totals row follows filters; duplicates and unreadable files are coloured
+  and explained; a second sheet lists every line item.
+- ZIP archives: `batch`, `show` and the MCP tool `list_ofd_invoices` read the `.ofd`
+  files inside `.zip` archives, such as a batch download from the tax service.
+- `ofdkit show`, and the shortcut `ofdkit PATH`: an invoice as aligned Chinese text,
+  another document's text, or a table of the invoices in folders and archives with
+  totals.
+- `ofdkit.read_invoices()` reads files, folders and archives into `InvoiceFile`
+  results.
+- Totals without duplicates, and sums of amounts and tax, in the `batch` summary and
+  `list_ofd_invoices`; an `item_names` column in the CSV.
 - `ofdkit describe`: the file's structure as JSON with all text masked (Chinese
   characters become 字, digits 0, letters x/X), so problems can be reported without
   sharing an invoice. GitHub issue forms ask for it instead of the file.
@@ -22,10 +36,16 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
   购买方信息 and 备注 on e-invoices, are read as words instead of being scattered over
   the lines beside them. Pages with columns of prose are read column by column; tables
   are still read row by row.
-- The CSV from `batch` has a new `invoice_type` column after `invoice_code`.
+- The CSV from `batch` has new `invoice_type` and `item_names` columns.
+- Command-line help and messages are in Chinese. `text` and `show` say when a file has
+  no text at all, which usually means a scan.
 
 ### Fixed
 
+- Older invoices that share a number but have different invoice codes are no longer
+  flagged as duplicates.
+- Output piped into a program that stops reading early, such as `head`, no longer ends
+  with an error.
 - The MCP tool `read_ofd_text` with a page range no longer fails when one page in the
   range is damaged; that page is marked and the others are returned.
 

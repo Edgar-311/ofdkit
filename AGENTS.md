@@ -8,15 +8,16 @@ Read this file first; it carries the context between sessions.
 ofdkit reads OFD documents (GB/T 33190, China's fixed-layout format used for e-invoices
 and official documents) and makes their content usable by programs and AI tools.
 
-v0.1 scope, all read-only:
+Scope, all read-only:
 
 - Text extraction in reading order, as plain text and Markdown
 - Invoice fields from e-invoices (数电票 and older 增值税电子发票): invoice number, issue
   date, buyer and seller, amounts, tax, total, line items, as JSON
-- CLI: single file or a whole folder, folder results summarised as CSV
+- CLI for people (`ofdkit PATH`, Chinese output) and for programs (JSON, CSV); folders
+  and ZIP archives of invoices summarised as an Excel workbook or CSV
 - AI integrations: an MCP server, an Agent Skill, and a MarkItDown plugin
 
-Out of scope for v0.1: converting OFD to PDF or images, and writing or editing OFD.
+Out of scope: converting OFD to PDF or images, writing or editing OFD, and OCR.
 
 Companion repository: [ofd-samples](https://github.com/Edgar-311/ofd-samples), a public
 set of synthetic OFD test files with expected outputs.
@@ -66,6 +67,13 @@ anything public or irreversible; otherwise make sensible decisions and report th
   runs when `OFD_SAMPLES_DIR` points at a checkout (CI does this) or `../ofd-samples`
   exists. When a bug is found in a real file, add a synthetic sample with the same
   structure to ofd-samples first, then fix ofdkit.
+- Language: what the command line prints for people (help, messages, `show`, the batch
+  summary, the Excel headers) is Chinese, because OFD users read Chinese. Library
+  exceptions, JSON keys, CSV columns and MCP descriptions stay English for programs;
+  `batch.problems()` turns the known messages into Chinese for people.
+- `xlsx.py` writes Excel files by hand (no dependency). CI's extras job installs
+  openpyxl to read them back; for layout changes, also open one in LibreOffice
+  (`soffice --headless --convert-to html`) and look at it.
 - Every behaviour change comes with a test.
 
 ## Commits
@@ -104,15 +112,17 @@ environment `pypi`.
       `package.py`
 - [x] Text extraction in reading order (`layout.py`)
 - [x] Invoice fields from XML attachments, custom tags and OFD.xml CustomData (`invoice.py`)
-- [x] CLI commands: info, text, invoice, batch (`cli.py`; batch writes UTF-8 CSV with a
-      BOM for Excel and flags duplicate invoice numbers)
+- [x] CLI commands: show (also `ofdkit PATH`), info, text, invoice, batch, describe
+      (`cli.py`, `report.py`); batch writes an Excel workbook (`xlsx.py`) or UTF-8 CSV
+      with a BOM, reads ZIP archives (`batch.py`) and flags duplicate invoices
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
 - [x] Agent Skill (`skills/ofd-reader/SKILL.md`, format checked by `tests/test_skill.py`)
 - [x] v0.1.0 released to PyPI on 2026-10-26 (https://pypi.org/project/ofdkit/)
 - [x] Better reading order (vertical labels, prose columns), `invoice_type`,
-      `ofdkit describe` and GitHub issue forms (0.2.0)
+      `ofdkit describe`, GitHub issue forms, Excel output, ZIP archives, `ofdkit show`,
+      Chinese CLI, `ofdkit.read_invoices` (0.2.0)
 
 Known gaps, in rough order of value:
 

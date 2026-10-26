@@ -30,7 +30,9 @@ and either uv or pip.
 | The text of a document | `uvx ofdkit text FILE.ofd` |
 | Text for summarising or translating, with an invoice table for e-invoices | `uvx ofdkit text FILE.ofd --markdown` |
 | The fields of one invoice | `uvx ofdkit invoice FILE.ofd` (JSON) |
-| All invoices in a folder, totals, a spreadsheet | `uvx ofdkit batch FOLDER -o 发票汇总.csv` (add `-r` for subfolders) |
+| A spreadsheet of all invoices in a folder or .zip archive, for the user | `uvx ofdkit batch FOLDER -o 发票汇总.xlsx` (add `-r` for subfolders) |
+| The same as data for you to process | `uvx ofdkit batch FOLDER` (CSV on stdout, totals on stderr) |
+| A quick look at an invoice or a folder, in Chinese | `uvx ofdkit show PATH` |
 | Page count, size, author, whether it is an invoice | `uvx ofdkit info FILE.ofd --json` |
 
 Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command only; try
@@ -39,13 +41,18 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
 ## Working with the results
 
 - Amounts are decimal strings. Add them with exact decimal arithmetic, not floats.
-  `batch` prints the sum of `total_amount` on stderr.
-- Check `warnings`: they report totals that do not add up and duplicate invoice numbers
-  (the same invoice submitted twice). Point these out to the user.
+  `batch` prints the totals on stderr, also without duplicates.
+- Check `warnings`: they report totals that do not add up and duplicate invoices (the
+  same invoice number, and the same invoice code for older invoices, in several files:
+  the same invoice submitted twice). Point these out to the user.
 - `issue_date` is `YYYY-MM-DD` when the date could be read; otherwise it is the text as
   printed.
-- The CSV from `batch` is UTF-8 with a BOM, so Excel shows Chinese correctly. Rows that
-  are not invoices have the reason in the `error` column.
+- When the user wants a spreadsheet, write `.xlsx`, not `.csv`: Excel turns long invoice
+  numbers in a CSV into numbers like 2.4E+19. The workbook keeps them as text, has
+  totals, flags duplicates, and lists line items on a second sheet. Rows that are not
+  invoices have the reason in the `error` column (CSV) or 提醒 (Excel).
+- `batch` and `show` read .zip archives as folders, so an archive downloaded from the
+  tax service does not need unzipping first.
 - ofdkit reports what a file contains. It does not verify that an invoice is genuine;
   say so if the user asks whether an invoice is real, and point them to the official
   verification service of the State Taxation Administration (国家税务总局全国增值税发票查验平台).

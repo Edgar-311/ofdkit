@@ -14,7 +14,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__
-from .batch import find_ofd_files, invoice_rows, summary
+from .batch import find_ofd_files, invoice_row, read_invoice_files, summary
 from .cli import file_info
 from .document import OFDDocument
 from .errors import OFDError
@@ -106,10 +106,11 @@ def create_server(root: str | Path | None = None) -> MCPServer:
 
     @server.tool(title="List OFD invoices in a folder", annotations=_READ_ONLY)
     def list_ofd_invoices(folder: str, recursive: bool = False) -> dict[str, Any]:
-        """Summarise every invoice in a folder of .ofd files.
+        """Summarise every invoice in a folder of .ofd files, including ZIP archives of them.
 
-        Returns one row per file (number, date, buyer, seller, amounts, or the reason it
-        could not be read), duplicate invoice numbers flagged, and totals.
+        Returns one row per file (number, date, buyer, seller, amounts, item names, or the
+        reason it could not be read), duplicate invoices flagged, and totals with and
+        without duplicates.
 
         Args:
             folder: Absolute path to a folder.
@@ -119,8 +120,9 @@ def create_server(root: str | Path | None = None) -> MCPServer:
         if not directory.is_dir():
             raise ToolError(f"{folder} is not a folder")
         files, _ = find_ofd_files([directory], recursive)
-        truncated = len(files) > MAX_BATCH_FILES
-        rows = invoice_rows(files[:MAX_BATCH_FILES])
-        return {"summary": summary(rows), "truncated": truncated, "rows": rows}
+        results = read_invoice_files(files, limit=MAX_BATCH_FILES + 1)
+        truncated = len(results) > MAX_BATCH_FILES
+        results = results[:MAX_BATCH_FILES]
+        return {"summary": summary(results), "truncated": truncated, "rows": [invoice_row(r) for r in results]}
 
     return server

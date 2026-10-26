@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import TYPE_CHECKING, Any
 
-from ._xml import child_text, children, grandchildren, local_name
+from ._xml import child_text, children, local_name
 from .errors import OFDError
 
 if TYPE_CHECKING:

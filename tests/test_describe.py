@@ -75,7 +75,7 @@ class DescribeTest(unittest.TestCase):
             target = Path(directory) / "a.json"
             code, out, err = run("describe", str(source), "-o", str(target))
             self.assertEqual((code, out), (0, ""))
-            self.assertIn("check the file before sharing", err)
+            self.assertIn("分享之前请再检查", err)
             self.assertIn("entries", json.loads(target.read_text(encoding="utf-8")))
         self.assertIs(main, main)
 

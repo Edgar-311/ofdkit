@@ -4,37 +4,84 @@
 
 A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese fixed-layout format used for e-invoices and official documents): extract text and invoice fields, and use them from AI tools.
 
-> 状态：0.1 版，接口以后可能还会调整。更新记录见 [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md)。
-> Status: 0.1, the API may still change. See the [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md).
+> 状态：0.2 版，接口以后可能还会调整。更新记录见 [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md)。
+> Status: 0.2, the API may still change. See the [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md).
 
 ## 能做什么 / What it does
 
+- 看发票：一条命令显示发票号码、日期、购买方、销售方、金额和明细。
+  Show an invoice: number, date, buyer, seller, amounts and line items, with one command.
+- 把一个文件夹里的发票汇总到 Excel，也能直接读税务平台批量下载的 .zip 压缩包。发票号码保持原样（不会变成 2.4E+19），金额可以直接求和，重复的发票会标出来。
+  Summarise a folder of invoices, or a .zip archive downloaded from the tax service, into an Excel workbook: invoice numbers stay intact, amounts are numbers, duplicates are flagged.
 - 按阅读顺序提取文字，包括模板和复合对象里的文字。
   Text in reading order, including text in templates and composite objects.
-- 读取电子发票字段（数电票和增值税电子发票），输出 JSON：发票号码、开票日期、购买方、销售方、金额、税额、价税合计、明细。
-  Invoice fields from e-invoices as JSON: number, date, buyer, seller, amounts, tax, total, line items.
-- 把一个文件夹里的发票汇总成 CSV，Excel 可以直接打开，并提示重复的发票号码。
-  A folder of invoices summarised as CSV (opens in Excel), with duplicate invoice numbers flagged.
+- 给程序和 AI 用：发票字段输出 JSON，提供 MCP 服务器、Agent Skill 和 MarkItDown 插件。
+  For programs and AI: invoice fields as JSON, an MCP server, an Agent Skill and a MarkItDown plugin.
 - 只用 Python 标准库，没有任何第三方依赖；能读很多不规范的文件（路径写法不对、编码不对、XML 前缀错误等）。
   Standard library only, no dependencies; reads many non-conforming files (bad paths, encodings, XML prefixes).
 
-## 安装 / Install
+## 快速上手 / Quick start
 
-需要 Python 3.10 或更新版本。Requires Python 3.10+.
+1. 安装 [Python](https://www.python.org/downloads/) 3.10 或更新版本。Windows 上安装时请勾选 "Add python.exe to PATH"。
+   Install Python 3.10 or newer.
+2. 打开命令行（Windows 在开始菜单搜索"终端"或"cmd"，Mac 打开"终端"），安装 ofdkit：
+   Open a terminal and install ofdkit:
 
-```bash
-pip install ofdkit
-```
+   ```bash
+   pip install ofdkit
+   ```
+
+3. 看一张发票（把文件拖进命令行窗口就能填上路径）：
+   Show an invoice (drag the file into the terminal window to type its path):
+
+   ```bash
+   ofdkit 发票.ofd
+   ```
+
+   ```text
+   电子发票（普通发票）
+
+   发票号码  00000000000000000001
+   开票日期  2026-01-02
+   购买方    测试单位甲
+             税号 TESTBUYER0001
+   销售方    测试单位乙
+             税号 TESTSELLER0002
+   金额      100.00
+   税额      6.00
+   价税合计  106.00
+   明细      *测试*服务项目  100.00  6%
+   开票人    测试人员
+   ```
+
+   （数据是虚构的 / fictional data）
+
+4. 看一个文件夹或 .zip 压缩包里的所有发票和合计，然后导出到 Excel：
+   List every invoice in a folder or .zip archive with totals, then export to Excel:
+
+   ```bash
+   ofdkit 发票文件夹
+   ofdkit batch 发票文件夹 -o 发票汇总.xlsx
+   ```
+
+   Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红并写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行。
+   The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red with the reason) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
 
 ## 命令行 / Command line
 
 ```bash
+ofdkit 文件.ofd                              # 看发票，不是发票就显示文字 / show an invoice, or the text
+ofdkit 文件夹或压缩包.zip                     # 发票列表和合计 / list invoices with totals
+ofdkit batch 文件夹 -o 发票汇总.xlsx          # 导出 Excel / export to Excel
+ofdkit batch 文件夹 -o 发票汇总.csv           # 导出 CSV（给程序用）/ export CSV for programs
 ofdkit text 文件.ofd                         # 提取文字 / print text
 ofdkit invoice 发票.ofd                      # 发票字段（JSON）/ invoice fields as JSON
-ofdkit batch 发票文件夹/ -o 发票汇总.csv      # 批量汇总 / summarise a folder as CSV
 ofdkit info 文件.ofd                         # 页数、作者等信息 / pages and metadata
 ofdkit describe 文件.ofd -o 结构.json         # 打码的结构，用于报告问题 / masked structure for bug reports
 ```
+
+`batch` 和 `show` 加 `-r` 会连子文件夹一起找。`ofdkit 文件.ofd` 是 `ofdkit show 文件.ofd` 的简写。
+Add `-r` to `batch` and `show` to include subfolders. `ofdkit PATH` is short for `ofdkit show PATH`.
 
 `ofdkit invoice` 的输出示例（数据是虚构的）/ Example output (fictional data):
 
@@ -138,6 +185,13 @@ with ofdkit.open("发票.ofd") as doc:
     invoice = doc.invoice()        # 不是发票时返回 None / None if not an invoice
     if invoice:
         print(invoice.invoice_number, invoice.total_amount)
+
+# 文件夹、.zip 压缩包或多个文件 / folders, ZIP archives or several files
+for result in ofdkit.read_invoices("发票文件夹", recursive=True):
+    if result.invoice:
+        print(result.file, result.invoice.total_amount, "重复" if result.duplicate else "")
+    else:
+        print(result.file, result.error)
 ```
 
 ## 遇到读不出的文件 / Reporting a problem

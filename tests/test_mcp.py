@@ -96,6 +96,25 @@ class InProcessTest(_Files):
         self.assertEqual(listing["summary"]["without_invoice_data"], 1)
         self.assertFalse(listing["truncated"])
 
+    def test_folder_listing_reads_zip_archives_and_stops_at_the_limit(self):
+        from unittest import mock
+
+        from ofdkit import mcp_server
+
+        from .ofdbuilder import zip_parts
+
+        archive = self.root / "下载.zip"
+        archive.write_bytes(zip_parts({"a.ofd": self.invoice.read_bytes(), "b.ofd": self.invoice.read_bytes()}))
+        listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
+        self.assertEqual(listing["summary"]["invoices"], 3)
+        self.assertEqual(listing["summary"]["duplicates"], 2)
+        self.assertEqual(listing["summary"]["total_amount_sum_without_duplicates"], "106.00")
+        self.assertIn(str(archive / "a.ofd"), [row["file"] for row in listing["rows"]])
+        with mock.patch.object(mcp_server, "MAX_BATCH_FILES", 2):
+            listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
+        self.assertTrue(listing["truncated"])
+        self.assertEqual(len(listing["rows"]), 2)
+
     def test_root_restricts_paths(self):
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)

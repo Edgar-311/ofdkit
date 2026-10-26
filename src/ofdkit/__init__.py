@@ -9,6 +9,7 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 
+from .batch import InvoiceFile, read_invoices
 from .document import DocInfo, OFDDocument, Page, TextRun
 from .errors import OFDError, OFDFormatError, OFDLimitError
 from .invoice import Invoice, LineItem, Party
@@ -22,6 +23,7 @@ except PackageNotFoundError:  # running from a source checkout that is not insta
 __all__ = [
     "DocInfo",
     "Invoice",
+    "InvoiceFile",
     "LineItem",
     "OFDDocument",
     "OFDError",
@@ -34,6 +36,7 @@ __all__ = [
     "extract_invoice",
     "extract_text",
     "open",
+    "read_invoices",
 ]
 
 
