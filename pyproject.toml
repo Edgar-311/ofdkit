@@ -37,3 +37,4 @@ ofdkit = "ofdkit.markitdown_plugin"
 [project.urls]
 Homepage = "https://github.com/Edgar-311/ofdkit"
 Issues = "https://github.com/Edgar-311/ofdkit/issues"
+Changelog = "https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md"

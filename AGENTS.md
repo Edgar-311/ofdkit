@@ -74,6 +74,22 @@ anything public or irreversible; otherwise make sensible decisions and report th
 - End every commit message with the agent's `Co-Authored-By` trailer.
 - Never rewrite or force-push published history.
 
+## Releasing
+
+Only after the maintainer replies "发" (rule 5).
+
+1. Move the `[Unreleased]` notes in CHANGELOG.md under a new `[X.Y.Z] - YYYY-MM-DD`
+   heading and set `version = "X.Y.Z"` in pyproject.toml. Commit and push; wait for CI.
+2. Publish a GitHub release tagged `vX.Y.Z` with the changelog section as its notes:
+   `gh release create vX.Y.Z --title vX.Y.Z --notes-file NOTES.md`.
+3. `.github/workflows/release.yml` checks the tag against the version, runs the tests,
+   builds, and uploads to PyPI through Trusted Publishing (environment `pypi`).
+4. Set the version to the next `.dev0` (for example `0.2.0.dev0`) afterwards.
+
+PyPI side (one-time, done by the maintainer in their PyPI account): a trusted publisher
+for project `ofdkit`, owner `Edgar-311`, repository `ofdkit`, workflow `release.yml`,
+environment `pypi`.
+
 ## Status
 
 - [x] Repository, license (Apache-2.0), package skeleton, CI
