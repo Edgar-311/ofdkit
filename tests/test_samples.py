@@ -32,6 +32,15 @@ def _normalise(text):
     return [line for line in lines if line]
 
 
+class ConfigurationTest(unittest.TestCase):
+    def test_configured_samples_are_found(self):
+        """When CI sets OFD_SAMPLES_DIR, a missing checkout must fail rather than skip."""
+        configured = os.environ.get("OFD_SAMPLES_DIR")
+        if not configured:
+            self.skipTest("OFD_SAMPLES_DIR is not set")
+        self.assertTrue((Path(configured) / "expected").is_dir(), f"no ofd-samples checkout at {configured}")
+
+
 @unittest.skipIf(SAMPLES is None, "ofd-samples not found (set OFD_SAMPLES_DIR)")
 class SamplesTest(unittest.TestCase):
     def test_all_samples(self):
