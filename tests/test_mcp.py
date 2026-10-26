@@ -72,6 +72,18 @@ class InProcessTest(_Files):
         result = self.call("read_ofd_text", {"path": str(self.plain), "first_page": 5})
         self.assertTrue(result.is_error)
 
+    def test_damaged_page_in_range_is_reported(self):
+        from .ofdbuilder import zip_parts
+
+        parts = OFDBuilder().parts([[Text("一", 20, 30)], [Text("二", 20, 30)]])
+        parts["Doc_0/Pages/Page_0/Content.xml"] = b"<broken"
+        damaged = self.root / "damaged.ofd"
+        damaged.write_bytes(zip_parts(parts))
+        result = self.call("read_ofd_text", {"path": str(damaged), "first_page": 1, "last_page": 2})
+        self.assertFalse(result.is_error)
+        self.assertIn("[page 1 could not be read", result.content[0].text)
+        self.assertTrue(result.content[0].text.endswith("二"))
+
     def test_read_text_markdown(self):
         result = self.call("read_ofd_text", {"path": str(self.invoice), "markdown": True})
         self.assertTrue(result.content[0].text.startswith("## 发票信息"))

@@ -68,7 +68,13 @@ def create_server(root: str | Path | None = None) -> MCPServer:
             pages = document.pages[max(first_page, 1) - 1 : last_page]
             if not pages:
                 raise ToolError(f"no pages in range {first_page}-{last_page}; the file has {len(document.pages)} pages")
-            texts = [f"## 第 {page.index + 1} 页\n\n{page.text()}" if markdown else page.text() for page in pages]
+            texts = []
+            for page in pages:
+                try:
+                    text = page.text()
+                except OFDError as exc:
+                    text = f"[page {page.index + 1} could not be read: {exc}]"
+                texts.append(f"## 第 {page.index + 1} 页\n\n{text}" if markdown else text)
             return "\n\n".join(texts)
 
     @server.tool(title="Read OFD invoice", annotations=_READ_ONLY)
