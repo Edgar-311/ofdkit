@@ -111,6 +111,8 @@ environment `pypi`.
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
 - [x] Agent Skill (`skills/ofd-reader/SKILL.md`, format checked by `tests/test_skill.py`)
 - [x] v0.1.0 released to PyPI on 2026-10-26 (https://pypi.org/project/ofdkit/)
+- [x] Better reading order (vertical labels, prose columns), `invoice_type`,
+      `ofdkit describe` and GitHub issue forms (0.2.0)
 
 Known gaps, in rough order of value:
 

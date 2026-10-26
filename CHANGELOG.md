@@ -5,6 +5,8 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-26
+
 ### Added
 
 - `ofdkit describe`: the file's structure as JSON with all text masked (Chinese
@@ -20,6 +22,12 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
   购买方信息 and 备注 on e-invoices, are read as words instead of being scattered over
   the lines beside them. Pages with columns of prose are read column by column; tables
   are still read row by row.
+- The CSV from `batch` has a new `invoice_type` column after `invoice_code`.
+
+### Fixed
+
+- The MCP tool `read_ofd_text` with a page range no longer fails when one page in the
+  range is damaged; that page is marked and the others are returned.
 
 ## [0.1.0] - 2026-10-26
 
@@ -41,5 +49,6 @@ First release.
 - MarkItDown plugin (`pip install "ofdkit[markitdown]"`).
 - The `ofd-reader` Agent Skill.
 
-[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Edgar-311/ofdkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Edgar-311/ofdkit/releases/tag/v0.1.0
