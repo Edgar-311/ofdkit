@@ -84,8 +84,10 @@ Only after the maintainer replies "发" (rule 5).
 
 1. Move the `[Unreleased]` notes in CHANGELOG.md under a new `[X.Y.Z] - YYYY-MM-DD`
    heading and set `version = "X.Y.Z"` in pyproject.toml. Commit and push; wait for CI.
-2. Publish a GitHub release tagged `vX.Y.Z` with the changelog section as its notes:
-   `gh release create vX.Y.Z --title vX.Y.Z --notes-file NOTES.md`.
+2. Agent sessions cannot create GitHub releases (the API returns 403), so the maintainer
+   publishes it: give them a prefilled link,
+   `https://github.com/Edgar-311/ofdkit/releases/new?tag=vX.Y.Z&target=main&title=vX.Y.Z&body=<url-encoded notes>`,
+   and ask them to click "Publish release". Then watch the Release workflow run.
 3. `.github/workflows/release.yml` checks the tag against the version, runs the tests,
    builds, and uploads to PyPI through Trusted Publishing (environment `pypi`).
 4. Set the version to the next `.dev0` (for example `0.2.0.dev0`) afterwards.
@@ -108,7 +110,7 @@ environment `pypi`.
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
 - [x] Agent Skill (`skills/ofd-reader/SKILL.md`, format checked by `tests/test_skill.py`)
-- [ ] v0.1.0 release
+- [x] v0.1.0 released to PyPI on 2026-10-26 (https://pypi.org/project/ofdkit/)
 
 Known gaps, in rough order of value:
 
