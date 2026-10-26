@@ -16,6 +16,7 @@ from . import __version__
 from .document import OFDDocument
 from .errors import OFDError
 from .invoice import Invoice
+from .markdown import document_markdown
 
 EXIT_OK = 0
 EXIT_NO_INVOICE = 1
@@ -54,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
     text = commands.add_parser("text", help="print the text in reading order")
     text.add_argument("file", help="OFD file")
     text.add_argument("-o", "--output", help="write to this file (UTF-8) instead of the screen")
+    text.add_argument("--markdown", action="store_true", help="print Markdown, with an invoice table for e-invoices")
 
     invoice = commands.add_parser("invoice", help="print invoice fields as JSON")
     invoice.add_argument("file", help="OFD file")
@@ -118,7 +120,7 @@ def _info(args: argparse.Namespace) -> int:
 
 def _text(args: argparse.Namespace) -> int:
     with OFDDocument(args.file) as document:
-        text = document.text()
+        text = document_markdown(document).rstrip("\n") if args.markdown else document.text()
         warnings = list(document.warnings)
     if args.output:
         Path(args.output).write_text(text + "\n", encoding="utf-8")

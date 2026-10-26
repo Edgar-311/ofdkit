@@ -24,8 +24,14 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+markitdown = ["markitdown>=0.1,<0.2"]
+
 [project.scripts]
 ofdkit = "ofdkit.cli:main"
+
+[project.entry-points."markitdown.plugin"]
+ofdkit = "ofdkit.markitdown_plugin"
 
 [project.urls]
 Homepage = "https://github.com/Edgar-311/ofdkit"

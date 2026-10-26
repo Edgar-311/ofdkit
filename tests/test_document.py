@@ -53,6 +53,10 @@ class DocumentTest(unittest.TestCase):
         with ofdkit.open(OFDBuilder().build([texts])) as document:
             self.assertEqual(document.text(), "AB CD")
 
+    def test_lines_are_trimmed(self):
+        with ofdkit.open(OFDBuilder().build([[Text("    缩进　", 20, 30)]])) as document:
+            self.assertEqual(document.text(), "缩进")
+
     def test_duplicate_runs_are_dropped(self):
         texts = [Text("加粗", 20, 30), Text("加粗", 20.05, 30)]
         with ofdkit.open(OFDBuilder().build([texts])) as document:

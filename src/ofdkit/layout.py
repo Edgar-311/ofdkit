@@ -80,4 +80,5 @@ def _join_line(line: list[_Run]) -> str:
         elif gap > _WORD_GAP * size:
             parts.append(" ")
         parts.append(run.text)
-    return "".join(parts).rstrip()
+    # Leading spaces are layout, not content, and would start a code block in Markdown.
+    return "".join(parts).strip()

@@ -53,6 +53,10 @@ class CliTest(unittest.TestCase):
         code, out, _ = run("text", self.plain)
         self.assertEqual((code, out), (EXIT_OK, "第一页\n\n第二页\n"))
 
+    def test_text_markdown(self):
+        code, out, _ = run("text", self.plain, "--markdown")
+        self.assertEqual((code, out), (EXIT_OK, "## 第 1 页\n\n第一页\n\n## 第 2 页\n\n第二页\n"))
+
     def test_text_to_file(self):
         target = self.root / "out.txt"
         code, out, _ = run("text", self.plain, "-o", str(target))
