@@ -87,7 +87,7 @@ anything public or irreversible; otherwise make sensible decisions and report th
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
-- [ ] Agent Skill
+- [x] Agent Skill (`skills/ofd-reader/SKILL.md`, format checked by `tests/test_skill.py`)
 - [ ] v0.1.0 release
 
 Known gaps, in rough order of value:

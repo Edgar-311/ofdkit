@@ -109,6 +109,14 @@ args = ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
 加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。在 0.1.0 发布到 PyPI 之前，把 `ofdkit[mcp]` 换成 `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`。
 Add `--root FOLDER` to allow only files inside that folder. Until 0.1.0 is on PyPI, replace `ofdkit[mcp]` with `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`.
 
+### Agent Skill
+
+[`skills/ofd-reader`](skills/ofd-reader/SKILL.md) 告诉 AI 什么时候、怎么用 ofdkit 命令行，适用于支持 [Agent Skills](https://agentskills.io) 的工具。把这个文件夹复制到：
+[`skills/ofd-reader`](skills/ofd-reader/SKILL.md) tells an AI agent when and how to use the ofdkit command line. Copy the folder to:
+
+- Claude Code: `~/.claude/skills/ofd-reader/`
+- Codex: `~/.codex/skills/ofd-reader/`
+
 ### MarkItDown 插件 / MarkItDown plugin
 
 [MarkItDown](https://github.com/microsoft/markitdown) 是把各种文件转成 Markdown 给 AI 读的工具。安装插件后它就能读 OFD：
