@@ -5,6 +5,12 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Added
+
+- `invoice_type`: the invoice type as printed in its title, such as
+  电子发票（增值税专用发票） or 上海增值税电子普通发票, in the JSON, the CSV from
+  `batch` and the Markdown table.
+
 ### Changed
 
 - Better reading order. Vertical labels written one character per line, such as

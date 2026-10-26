@@ -164,6 +164,47 @@ class SourcesTest(unittest.TestCase):
         self.assertIsNone(ofdkit.extract_invoice(OFDBuilder().build([[Text("普通文档", 20, 20)]], custom_tag=tag)))
 
 
+class _Page:
+    def __init__(self, text):
+        self._text = text
+
+    def text(self):
+        return self._text
+
+
+class _Document:
+    def __init__(self, text):
+        self.pages = [_Page(text)]
+
+
+class InvoiceTypeTest(unittest.TestCase):
+    """The type comes from the title line; stub pages keep these tests free of invoice-like files."""
+
+    def kind(self, text):
+        from ofdkit.invoice import _invoice_type
+
+        return _invoice_type(_Document(text))
+
+    def test_digital_invoice_titles(self):
+        self.assertEqual(self.kind("电子发票（增值税专用发票）   发票号码：00000001"), "电子发票（增值税专用发票）")
+        self.assertEqual(self.kind("测试样例\n电子发票(普通发票)"), "电子发票（普通发票）")
+        self.assertEqual(self.kind("电子发票 （ 铁路电子客票 ）"), "电子发票（铁路电子客票）")
+
+    def test_older_titles_keep_their_region(self):
+        self.assertEqual(self.kind("测试增值税电子普通发票\n机器编号：0"), "测试增值税电子普通发票")
+        self.assertEqual(self.kind("增值税电子普通发票(通行费)"), "增值税电子普通发票（通行费）")
+
+    def test_no_title(self):
+        self.assertIsNone(self.kind("测试样例\n普通文档"))
+        self.assertIsNone(self.kind("这不是增值税电子普通发票的标题，因为它在句子中间"))
+
+    def test_field_is_in_the_output(self):
+        builder = OFDBuilder(custom_data={"发票号码": "00000006"})
+        invoice = ofdkit.extract_invoice(builder.build([[Text("测试样例", 20, 20)]]))
+        self.assertIn("invoice_type", invoice.to_dict())
+        self.assertIsNone(invoice.invoice_type)
+
+
 class NormalisationTest(unittest.TestCase):
     def test_dates(self):
         self.assertEqual(_date("2026年1月2日"), "2026-01-02")

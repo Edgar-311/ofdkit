@@ -11,6 +11,7 @@ from .invoice import Invoice
 _INVOICE_ROWS = [
     ("发票号码", lambda i: i.invoice_number),
     ("发票代码", lambda i: i.invoice_code),
+    ("发票种类", lambda i: i.invoice_type),
     ("开票日期", lambda i: i.issue_date),
     ("校验码", lambda i: i.check_code),
     ("购买方名称", lambda i: i.buyer.name),

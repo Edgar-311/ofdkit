@@ -81,8 +81,10 @@ def create_server(root: str | Path | None = None) -> MCPServer:
     def read_ofd_invoice(path: str) -> dict[str, Any]:
         """Read the fields of a Chinese e-invoice (数电票 or 增值税电子发票) in OFD format.
 
-        Returns invoice number and code, issue date (YYYY-MM-DD), buyer and seller, amounts
-        as decimal strings, line items, and warnings such as totals that do not add up.
+        Returns invoice number and code, the invoice type as printed (such as
+        电子发票（增值税专用发票）; 专用发票 can be used for VAT deduction, 普通发票 cannot),
+        issue date (YYYY-MM-DD), buyer and seller, amounts as decimal strings, line items,
+        and warnings such as totals that do not add up.
 
         Args:
             path: Absolute path to the .ofd file.

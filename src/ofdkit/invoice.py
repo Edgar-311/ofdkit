@@ -83,6 +83,10 @@ _CUSTOM_DATA = {
 _KEY_FIELDS = ("InvoiceNo", "InvoiceCode", "TaxInclusiveTotalAmount", "TaxExclusiveTotalAmount")
 
 _AMOUNT = re.compile(r"^-?\d+(?:\.\d+)?$")
+# Titles printed on e-invoices: 数电票 such as 电子发票（增值税专用发票）, and older ones
+# such as 上海增值税电子普通发票 (a province, then the type).
+_DIGITAL_TITLE = re.compile(r"电子发票[（(]([^）)]{2,24})[）)]")
+_OLDER_TITLE = re.compile(r"([\u4e00-\u9fff]{0,4}增值税电子(?:普通|专用)发票(?:[（(]通行费[）)])?)")
 _DATE = re.compile(r"^(\d{4})\s*[年/.-]?\s*(\d{1,2})\s*[月/.-]?\s*(\d{1,2})\s*日?(?:[\sT]+\d{1,2}:\d{2}(?::\d{2})?)?$")
 
 
@@ -140,6 +144,8 @@ class Invoice:
 
     invoice_number: str | None = None
     invoice_code: str | None = None
+    #: The invoice type as printed in its title, for example 电子发票（增值税专用发票）.
+    invoice_type: str | None = None
     issue_date: str | None = None
     check_code: str | None = None
     machine_number: str | None = None
@@ -164,6 +170,7 @@ class Invoice:
         data: dict[str, Any] = {
             "invoice_number": self.invoice_number,
             "invoice_code": self.invoice_code,
+            "invoice_type": self.invoice_type,
             "issue_date": self.issue_date,
             "check_code": self.check_code,
             "machine_number": self.machine_number,
@@ -241,8 +248,28 @@ def read_invoice(document: OFDDocument) -> Invoice | None:
         for path, values in source.values.items():
             invoice.raw.setdefault(path, list(values))
 
+    invoice.invoice_type = _invoice_type(document)
     _normalise(invoice)
     return invoice
+
+
+def _invoice_type(document: OFDDocument) -> str | None:
+    """The title printed on the first page, such as 电子发票（普通发票）, or None."""
+    if not document.pages:
+        return None
+    try:
+        text = document.pages[0].text()
+    except OFDError:
+        return None
+    for line in text.splitlines():
+        compact = re.sub(r"\s+", "", line)
+        match = _DIGITAL_TITLE.search(compact)
+        if match:
+            return f"电子发票（{match.group(1)}）"
+        match = _OLDER_TITLE.fullmatch(compact)  # older titles stand on a line of their own
+        if match:
+            return match.group(1).replace("(", "（").replace(")", "）")
+    return None
 
 
 def _attachment_sources(document: OFDDocument) -> list[_Source]:

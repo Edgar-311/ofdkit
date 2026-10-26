@@ -16,6 +16,7 @@ COLUMNS = [
     "file",
     "invoice_number",
     "invoice_code",
+    "invoice_type",
     "issue_date",
     "buyer_name",
     "buyer_tax_id",
@@ -91,6 +92,7 @@ def _invoice_columns(invoice: Invoice) -> dict[str, Any]:
     return {
         "invoice_number": invoice.invoice_number or "",
         "invoice_code": invoice.invoice_code or "",
+        "invoice_type": invoice.invoice_type or "",
         "issue_date": invoice.issue_date or "",
         "buyer_name": invoice.buyer.name or "",
         "buyer_tax_id": invoice.buyer.tax_id or "",
