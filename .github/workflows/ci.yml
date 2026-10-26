@@ -27,9 +27,16 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Get the shared test files
+        uses: actions/checkout@v5
+        with:
+          repository: Edgar-311/ofd-samples
+          path: ofd-samples
       - name: Install
         run: python -m pip install .
       - name: Test
+        env:
+          OFD_SAMPLES_DIR: ofd-samples
         run: python -m unittest discover -s tests -t . -v
 
   # The MCP server and MarkItDown plugin need optional dependencies; test them too.

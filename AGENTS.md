@@ -62,6 +62,10 @@ anything public or irreversible; otherwise make sensible decisions and report th
   protocol: the protocol gained a new request format in revision 2026-07-28, and the SDK
   negotiates both that and the older initialize handshake. `tests/test_mcp.py` checks
   the handshake over real stdio.
+- `tests/test_samples.py` checks ofdkit against the expected outputs in ofd-samples. It
+  runs when `OFD_SAMPLES_DIR` points at a checkout (CI does this) or `../ofd-samples`
+  exists. When a bug is found in a real file, add a synthetic sample with the same
+  structure to ofd-samples first, then fix ofdkit.
 - Every behaviour change comes with a test.
 
 ## Commits
