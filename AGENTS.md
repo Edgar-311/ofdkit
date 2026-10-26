@@ -54,8 +54,14 @@ anything public or irreversible; otherwise make sensible decisions and report th
 - Set up: `uv venv && uv pip install -e .`
 - Test: `python -m unittest discover -s tests -t . -v`
 - Build: `uv build`
-- CI runs the tests on Linux (3.10, 3.12, 3.14), Windows and macOS (3.12). Keep paths and
-  text encodings platform-neutral: always open text files with `encoding="utf-8"`.
+- CI runs the tests on Linux (3.10, 3.12, 3.14), Windows and macOS (3.12), and again on
+  Linux and Windows with the `mcp` and `markitdown` extras installed. Tests for the extras
+  skip themselves when the extra is missing. Keep paths and text encodings
+  platform-neutral: always open text files with `encoding="utf-8"`.
+- The MCP server uses the official `mcp` SDK (2.x, `MCPServer`) instead of a hand-written
+  protocol: the protocol gained a new request format in revision 2026-07-28, and the SDK
+  negotiates both that and the older initialize handshake. `tests/test_mcp.py` checks
+  the handshake over real stdio.
 - Every behaviour change comes with a test.
 
 ## Commits
@@ -78,7 +84,10 @@ anything public or irreversible; otherwise make sensible decisions and report th
 - [x] Invoice fields from XML attachments, custom tags and OFD.xml CustomData (`invoice.py`)
 - [x] CLI commands: info, text, invoice, batch (`cli.py`; batch writes UTF-8 CSV with a
       BOM for Excel and flags duplicate invoice numbers)
-- [ ] MCP server, Agent Skill, MarkItDown plugin
+- [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
+- [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
+      ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
+- [ ] Agent Skill
 - [ ] v0.1.0 release
 
 Known gaps, in rough order of value:

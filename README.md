@@ -65,6 +65,60 @@ ofdkit info 文件.ofd                         # 页数、作者等信息 / page
 金额是字符串，不会丢失精度。如果"合计金额 + 合计税额"不等于"价税合计"，`warnings` 里会提示。
 Amounts are decimal strings, so no precision is lost. `warnings` notes totals that do not add up.
 
+## 在 AI 工具里使用 / Use from AI tools
+
+### MCP 服务器 / MCP server
+
+让 Claude、Codex、Cursor 等 AI 工具直接读取 OFD 文件。需要先安装 [uv](https://docs.astral.sh/uv/)。所有工具都是只读的。
+Lets Claude, Codex, Cursor and other AI tools read OFD files. Requires [uv](https://docs.astral.sh/uv/). All tools are read-only.
+
+| 工具 / Tool | 作用 / What it does |
+| --- | --- |
+| `read_ofd_text` | 按阅读顺序提取文字，可选 Markdown 和页码范围 / text in reading order, optional Markdown and page range |
+| `read_ofd_invoice` | 发票字段 / invoice fields |
+| `ofd_info` | 页数、尺寸、元数据 / pages, sizes, metadata |
+| `list_ofd_invoices` | 汇总一个文件夹里的发票 / summarise a folder of invoices |
+
+Claude Code:
+
+```bash
+claude mcp add ofdkit -- uvx --from "ofdkit[mcp]" ofdkit mcp
+```
+
+Claude Desktop、Cursor 等使用 JSON 配置的工具 / tools with a JSON config:
+
+```json
+{
+  "mcpServers": {
+    "ofdkit": {
+      "command": "uvx",
+      "args": ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
+    }
+  }
+}
+```
+
+Codex（`~/.codex/config.toml`）:
+
+```toml
+[mcp_servers.ofdkit]
+command = "uvx"
+args = ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
+```
+
+加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。在 0.1.0 发布到 PyPI 之前，把 `ofdkit[mcp]` 换成 `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`。
+Add `--root FOLDER` to allow only files inside that folder. Until 0.1.0 is on PyPI, replace `ofdkit[mcp]` with `ofdkit[mcp] @ git+https://github.com/Edgar-311/ofdkit`.
+
+### MarkItDown 插件 / MarkItDown plugin
+
+[MarkItDown](https://github.com/microsoft/markitdown) 是把各种文件转成 Markdown 给 AI 读的工具。安装插件后它就能读 OFD：
+[MarkItDown](https://github.com/microsoft/markitdown) converts files to Markdown for AI. With this plugin it reads OFD too:
+
+```bash
+pip install "ofdkit[markitdown]"
+markitdown --use-plugins 发票.ofd
+```
+
 ## Python
 
 ```python
