@@ -6,15 +6,15 @@ body:
     attributes:
       value: |
         **请不要上传真实的发票或文件。** 发票里有姓名、税号、金额等信息。
-        请用下面的命令导出文件结构，文字会全部打码（汉字变成"字"，数字变成"0"），只保留结构和位置：
-        **Please do not upload real invoices or documents.** Export the structure instead; all text is masked:
+        请用下面的命令导出文件结构。文字、文件名和较长的号码会打码（汉字变成"字"，数字变成"0"），只保留结构和位置：
+        **Please do not upload real invoices or documents.** Export the structure instead; text, file names and long numbers are masked:
 
         ```bash
         ofdkit describe 你的文件.ofd -o 结构.json
         ```
 
-        打开 `结构.json` 确认没有不想公开的内容，然后把它拖到下面"结构文件"的框里。
-        Check `结构.json`, then drag it into the "Structure" box below.
+        打码是尽力而为。请打开 `结构.json` 确认没有不想公开的内容，然后把它拖到下面"结构文件"的框里。
+        Masking is a best effort: check `结构.json`, then drag it into the "Structure" box below.
   - type: input
     id: version
     attributes:

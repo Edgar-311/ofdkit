@@ -5,6 +5,17 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Fixed
+
+- `ofdkit describe` no longer copies entry names, locations (`FileLoc`, `DocRoot`,
+  `BaseLoc` ...) and ASCII attribute values as they are. A name such as
+  `Doc_0/Attachs/TEST_COMPANY_12345678901234567890.pdf` used to appear unchanged; now
+  only the OFD layout's own names (`Doc_0`, `Pages`, `Content.xml` ...) are kept, other
+  path parts are masked the same way wherever they appear so references can still be
+  followed, attribute values other than numbers and format keywords are masked, and any
+  run of seven or more digits is masked. The help text no longer says that everything is
+  masked: masking is a best effort, and the output should be checked before sharing.
+
 ## [0.3.1] - 2026-10-28
 
 ### Added

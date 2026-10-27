@@ -107,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     rename.add_argument("--only-ofd", action="store_true", help="只改 .ofd 文件；不加的话，同名的 PDF、XML 等也一起改")
     rename.add_argument("--undo", metavar="改名记录", help="按改名记录把文件名改回去")
 
-    describe = commands.add_parser("describe", help="导出文件结构（文字全部打码），用于报告问题")
+    describe = commands.add_parser("describe", help="导出文件结构（文字、文件名和号码打码），用于报告问题")
     describe.add_argument("file", metavar="文件", help="OFD 文件")
     describe.add_argument("-o", "--output", metavar="输出文件", help="保存到这个文件（UTF-8），不显示在屏幕上")
 
@@ -367,7 +367,7 @@ def _describe(args: argparse.Namespace) -> int:
     text = json.dumps(describe(args.file), ensure_ascii=False, indent=1)
     if args.output:
         Path(args.output).write_text(text + "\n", encoding="utf-8")
-        _say(f"已保存到 {args.output}。文字都已打码，分享之前请再检查一遍。")
+        _say(f"已保存到 {args.output}。文字、文件名和号码已经打码，但打码不能保证万无一失，分享之前请再检查一遍。")
     else:
         print(text)
     return EXIT_OK

@@ -224,8 +224,8 @@ for result in ofdkit.read_invoices("发票文件夹", recursive=True, buyer=["�
 
 ## 遇到读不出的文件 / Reporting a problem
 
-请不要把真实发票发到网上。用这个命令导出文件结构，文字会全部打码，只保留结构和位置，然后附在 [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose) 里：
-Please do not post real invoices. Export the structure with all text masked and attach it to a [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose):
+请不要把真实发票发到网上。用这个命令导出文件结构，然后附在 [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose) 里。文字、文件名和较长的号码会打码（汉字变成"字"，数字变成"0"，字母变成 x），只保留结构、坐标和 OFD 格式自己的名字（如 `Doc_0`、`Content.xml`）。打码是尽力而为，发出去之前请自己再看一遍：
+Please do not post real invoices. Export the structure and attach it to a [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose). Text, file names and long numbers are masked; the structure, coordinates and the OFD format's own names (`Doc_0`, `Content.xml`) are kept. Masking is a best effort, so look through the file before posting it:
 
 ```bash
 ofdkit describe 文件.ofd -o 结构.json
