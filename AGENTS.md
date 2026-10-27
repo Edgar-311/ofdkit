@@ -98,7 +98,7 @@ Only after the maintainer replies "发" (rule 5).
    and ask them to click "Publish release". Then watch the Release workflow run.
 3. `.github/workflows/release.yml` checks the tag against the version, runs the tests,
    builds, and uploads to PyPI through Trusted Publishing (environment `pypi`).
-4. Set the version to the next `.dev0` (for example `0.2.0.dev0`) afterwards.
+4. Set the version to the next `.dev0` (for example `0.3.0.dev0`) afterwards.
 
 PyPI side (one-time, done by the maintainer in their PyPI account): a trusted publisher
 for project `ofdkit`, owner `Edgar-311`, repository `ofdkit`, workflow `release.yml`,
@@ -122,7 +122,7 @@ environment `pypi`.
 - [x] v0.1.0 released to PyPI on 2026-10-26 (https://pypi.org/project/ofdkit/)
 - [x] Better reading order (vertical labels, prose columns), `invoice_type`,
       `ofdkit describe`, GitHub issue forms, Excel output, ZIP archives, `ofdkit show`,
-      Chinese CLI, `ofdkit.read_invoices` (0.2.0)
+      Chinese CLI, `ofdkit.read_invoices`; 0.2.0 released to PyPI on 2026-10-27
 
 Known gaps, in rough order of value:
 
