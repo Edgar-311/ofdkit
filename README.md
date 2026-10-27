@@ -68,8 +68,8 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
    ofdkit batch 发票文件夹 -o 发票汇总.xlsx
    ```
 
-   Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红并写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行。
-   The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red with the reason) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
+   Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红，有其他提醒的发票（抬头不对、金额缺少或不是数字）标橙，都在"提醒"一栏写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行；不是数字的金额保留原样、不算进合计，合计下面会注明有几张。
+   The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red, other reminders such as another buyer or an amount that is missing or not a number in orange, each explained) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
 
 5. 检查发票抬头：加上 `--buyer`，购买方名称或税号不是你公司的发票会标出来（Excel 里标橙色）。名称和税号都要查，就写两次：
    Check who the invoices are made out to: with `--buyer`, invoices for another buyer name or tax ID are flagged (orange in Excel). Repeat it to check both:
@@ -135,8 +135,8 @@ Add `-r` to `show`, `batch` and `rename` to include subfolders. `ofdkit PATH` is
 }
 ```
 
-金额是字符串，不会丢失精度。如果"合计金额 + 合计税额"不等于"价税合计"，`warnings` 里会提示。
-Amounts are decimal strings, so no precision is lost. `warnings` notes totals that do not add up.
+金额是字符串，不会丢失精度。如果"合计金额 + 合计税额"不等于"价税合计"，或者某个金额不是数字（比如"无法识别"，这时保留原样），`warnings` 里会提示。汇总时只加真正的数字：0 就是 0，缺少的和不是数字的不算进合计，并单独计数（`not_summed`）。
+Amounts are decimal strings, so no precision is lost. `warnings` notes totals that do not add up and amounts that are not numbers (kept as found). Summaries add only real numbers: 0 counts as 0, while missing amounts and amounts that are not numbers are left out and counted in `not_summed`.
 
 ## 在 AI 工具里使用 / Use from AI tools
 

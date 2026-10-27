@@ -82,7 +82,11 @@ _CUSTOM_DATA = {
 # A source counts as an invoice only if it has at least one of these.
 _KEY_FIELDS = ("InvoiceNo", "InvoiceCode", "TaxInclusiveTotalAmount", "TaxExclusiveTotalAmount")
 
-_AMOUNT = re.compile(r"^-?\d+(?:\.\d+)?$")
+_AMOUNT = re.compile(r"-?\d+(?:\.\d+)?")
+#: The invoice-level amounts; a value that is not a plain decimal number gets a warning.
+AMOUNT_FIELDS = ("amount_without_tax", "tax_amount", "total_amount")
+#: Part of the warning for an amount that is present but not a number, such as "无法识别".
+NOT_A_NUMBER = "is not a number"
 # Titles printed on e-invoices: 数电票 such as 电子发票（增值税专用发票）, and older ones
 # such as 上海增值税电子普通发票 (a province, then the type).
 _DIGITAL_TITLE = re.compile(r"电子发票[（(]([^）)]{2,24})[）)]")
@@ -411,8 +415,11 @@ def _line_item(values: dict[str, str]) -> LineItem:
 
 
 def _normalise(invoice: Invoice) -> None:
-    for attribute in ("amount_without_tax", "tax_amount", "total_amount"):
-        setattr(invoice, attribute, _amount(getattr(invoice, attribute)))
+    for attribute in AMOUNT_FIELDS:
+        value = _amount(getattr(invoice, attribute))
+        setattr(invoice, attribute, value)  # kept as found when it is not a number
+        if value is not None and parse_amount(value) is None:
+            invoice.warnings.append(f"{attribute} {NOT_A_NUMBER}: {value!r}")
     for item in invoice.items:
         item.amount = _amount(item.amount)
         item.tax_amount = _amount(item.tax_amount)
@@ -425,7 +432,7 @@ def _normalise(invoice: Invoice) -> None:
     if invoice.invoice_number:
         invoice.invoice_number = re.sub(r"\s+", "", invoice.invoice_number)
 
-    totals = [_decimal(invoice.amount_without_tax), _decimal(invoice.tax_amount), _decimal(invoice.total_amount)]
+    totals = [parse_amount(invoice.amount_without_tax), parse_amount(invoice.tax_amount), parse_amount(invoice.total_amount)]
     if all(value is not None for value in totals):
         without_tax, tax, total = totals
         assert without_tax is not None and tax is not None and total is not None
@@ -440,11 +447,16 @@ def _amount(value: str | None) -> str | None:
     if value is None:
         return None
     cleaned = re.sub(r"[¥￥,，\s元]", "", value)
-    return cleaned if _AMOUNT.match(cleaned) else value
+    return cleaned if _AMOUNT.fullmatch(cleaned) else value
 
 
-def _decimal(value: str | None) -> Decimal | None:
-    if value is None or not _AMOUNT.match(value):
+def parse_amount(value: str | None) -> Decimal | None:
+    """The amount as a Decimal, or None when it is missing or not a plain decimal number.
+
+    Only digits with an optional minus sign and decimal point count: ``"0.00"`` is a real
+    zero, while ``"无法识别"``, ``"NaN"``, ``"Infinity"`` or ``"1e5"`` are not amounts.
+    """
+    if value is None or not _AMOUNT.fullmatch(value):
         return None
     try:
         return Decimal(value)

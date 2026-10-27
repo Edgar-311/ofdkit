@@ -96,9 +96,10 @@ class WorkbookXmlTest(unittest.TestCase):
         self.assertEqual(len(set(styles.values())), 3, "duplicate, not an invoice and unreadable differ")
 
     def test_other_buyer_is_coloured_and_explained(self):
+        amounts = {"amount_without_tax": "1.00", "tax_amount": "0.10", "total_amount": "1.10"}
         results = [
-            InvoiceFile("a.ofd", invoice=Invoice(invoice_number="1"), buyer_mismatch=["测试单位甲"]),
-            InvoiceFile("b.ofd", invoice=Invoice(invoice_number="2")),
+            InvoiceFile("a.ofd", invoice=Invoice(invoice_number="1", **amounts), buyer_mismatch=["测试单位甲"]),
+            InvoiceFile("b.ofd", invoice=Invoice(invoice_number="2", **amounts)),
         ]
         buffer = io.BytesIO()
         write_invoices_xlsx(results, buffer)

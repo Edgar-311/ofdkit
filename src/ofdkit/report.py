@@ -100,6 +100,11 @@ def summary_text(totals: dict[str, Any]) -> str:
             if Decimal(totals[key])  # left out when no invoice has the field
         ]
         text += f"\n价税合计 {money(totals['total_amount_sum'])} 元" + (f"（{'，'.join(parts)}）" if parts else "") + "。"
+    for column, label in (("total_amount", "价税合计"), ("amount_without_tax", "金额"), ("tax_amount", "税额")):
+        counts = totals.get("not_summed", {}).get(column, {})
+        parts = [f"{counts[key]} 张{word}" for key, word in (("invalid", "不是数字"), ("missing", "缺少")) if counts.get(key)]
+        if parts:
+            text += f"\n注意：{label}有 {'、'.join(parts)}，这些没有算进上面的合计。"
     if totals.get("buyer_mismatches"):
         text += f"\n有 {totals['buyer_mismatches']} 张发票的购买方不对（抬头或税号和你指定的不一样），请看“提醒”一栏。"
     if totals["duplicates"]:

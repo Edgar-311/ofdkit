@@ -133,7 +133,9 @@ def create_server(root: str | Path | None = None) -> MCPServer:
 
         Returns one row per file (number, date, buyer, seller, amounts, item names, or the
         reason it could not be read), duplicate invoices flagged, and totals with and
-        without duplicates.
+        without duplicates. Totals add only amounts that are numbers; summary.not_summed
+        counts, per amount, the invoices where it is missing or not a number (such rows
+        keep the value as found and say so in warnings). Mention these to the user.
 
         Args:
             folder: Absolute path to a folder.

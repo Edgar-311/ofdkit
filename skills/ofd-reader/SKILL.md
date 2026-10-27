@@ -43,7 +43,9 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
 ## Working with the results
 
 - Amounts are decimal strings. Add them with exact decimal arithmetic, not floats.
-  `batch` prints the totals on stderr, also without duplicates.
+  `batch` prints the totals on stderr, also without duplicates. An amount that is not a
+  number (such as 无法识别) is kept as found, noted in `warnings`, and left out of the
+  totals; tell the user how many were left out rather than presenting a total as complete.
 - Check `warnings`: they report totals that do not add up and duplicate invoices (the
   same invoice number, and the same invoice code for older invoices, in several files:
   the same invoice submitted twice). Point these out to the user.

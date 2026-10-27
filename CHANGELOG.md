@@ -7,6 +7,13 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ### Fixed
 
+- Amounts that are not numbers were summed as 0 without a word: an invoice whose
+  价税合计 read "无法识别" gave `total_amount_sum` "0" with no warning. Now such a value
+  is kept as found and noted in the invoice's `warnings`; sums add only plain decimal
+  numbers (a real `0.00` still counts); the summary's new `not_summed` counts, for each
+  amount, the invoices where it is missing or not a number; and the command line, the
+  Excel workbook (an orange row, a note under the totals, the value kept as text) and
+  the MCP tool all use this same rule. `NaN`, `Infinity` and `1e5` are not amounts.
 - MCP `--root`: `list_ofd_invoices` read OFD files behind links inside the allowed
   folder, such as a symbolic link to a file elsewhere or, on Windows, a directory
   junction followed by a recursive listing. Every file is now checked by its real

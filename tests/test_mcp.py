@@ -172,6 +172,17 @@ class InProcessTest(_Files):
         finally:  # before tearDown deletes the folder that holds the junction
             remove_junction(self.root / "linked")
 
+    def test_folder_listing_reports_amounts_it_could_not_add(self):
+        from .test_amounts import amounts_ofd
+
+        (self.root / "unreadable.ofd").write_bytes(amounts_ofd("00000009", "无法识别", "1.00", "0.10"))
+        listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
+        self.assertEqual(listing["summary"]["total_amount_sum"], "106.00")
+        self.assertEqual(listing["summary"]["not_summed"]["total_amount"], {"missing": 0, "invalid": 1})
+        row = next(row for row in listing["rows"] if row["invoice_number"] == "00000009")
+        self.assertEqual(row["total_amount"], "无法识别")
+        self.assertIn("total_amount is not a number", row["warnings"])
+
     def test_without_root_links_are_followed(self):
         self._links_to_outside()
         listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
