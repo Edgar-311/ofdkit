@@ -182,8 +182,8 @@ command = "uvx"
 args = ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
 ```
 
-加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。
-Add `--root FOLDER` to allow only files inside that folder.
+加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。判断的是文件的真实位置：文件夹里指向外面的快捷方式式链接（符号链接、Windows 的目录联接）不会被读取，汇总文件夹时会跳过并计数（`skipped_outside_root`）。
+Add `--root FOLDER` to allow only files inside that folder. The check uses each file's real location, so symbolic links and Windows directory junctions that lead outside are not read; folder listings skip and count them (`skipped_outside_root`).
 
 ### Agent Skill
 

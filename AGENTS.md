@@ -127,7 +127,9 @@ environment `pypi`.
       (2026-10-28); every release updates the listing
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
-      ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
+      ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction.
+      `--root` goes through `_guard.PathGuard`: every file is checked by its real path
+      right before it is opened. Any new tool that opens files must use it too
 - [x] Agent Skill (`skills/ofd-reader/SKILL.md`, format checked by `tests/test_skill.py`)
 - [x] v0.1.0 released to PyPI on 2026-10-26 (https://pypi.org/project/ofdkit/)
 - [x] Better reading order (vertical labels, prose columns), `invoice_type`,

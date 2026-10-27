@@ -7,6 +7,12 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ### Fixed
 
+- MCP `--root`: `list_ofd_invoices` read OFD files behind links inside the allowed
+  folder, such as a symbolic link to a file elsewhere or, on Windows, a directory
+  junction followed by a recursive listing. Every file is now checked by its real
+  location right before it is opened (for single files, folder listings and ZIP
+  archives alike), links to folders outside are not entered, and listings report how
+  many entries they skipped in `skipped_outside_root`.
 - `ofdkit describe` no longer copies entry names, locations (`FileLoc`, `DocRoot`,
   `BaseLoc` ...) and ASCII attribute values as they are. A name such as
   `Doc_0/Attachs/TEST_COMPANY_12345678901234567890.pdf` used to appear unchanged; now

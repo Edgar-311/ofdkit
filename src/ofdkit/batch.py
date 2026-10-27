@@ -15,8 +15,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
+from ._guard import PathGuard
 from .document import OFDDocument
 from .errors import OFDError
 from .invoice import Invoice
@@ -87,23 +88,30 @@ def read_invoices(
     return results
 
 
-def find_ofd_files(paths: Iterable[str | Path], recursive: bool = False) -> tuple[list[Path], list[str]]:
+def find_ofd_files(
+    paths: Iterable[str | Path], recursive: bool = False, guard: PathGuard | None = None
+) -> tuple[list[Path], list[str]]:
     """Files to read in ``paths``, plus the paths that do not exist.
 
     Files given directly are always kept. In folders, ``.ofd`` files are kept, and
-    ``.zip`` files that contain at least one ``.ofd`` file.
+    ``.zip`` files that contain at least one ``.ofd`` file. With ``guard``, anything whose
+    real location is outside the guard's folder is left out (and noted in
+    ``guard.refused``), and links to folders outside it are not followed.
     """
     found: list[Path] = []
     missing: list[str] = []
     for raw in paths:
         path = Path(raw)
-        if path.is_dir():
-            candidates = path.rglob("*") if recursive else path.glob("*")
+        if guard is not None and path.exists() and not guard.inside(path):
+            guard.refused.append(str(path))
+        elif path.is_dir():
+            if guard is not None:
+                candidates = list(guard.walk(path, recursive))
+            else:
+                candidates = [p for p in (path.rglob("*") if recursive else path.glob("*")) if p.is_file()]
             for candidate in sorted(candidates):
-                if not candidate.is_file():
-                    continue
                 suffix = candidate.suffix.lower()
-                if suffix == ".ofd" or (suffix == ".zip" and _archive_members(candidate)):
+                if suffix == ".ofd" or (suffix == ".zip" and _archive_members(candidate, guard)):
                     found.append(candidate)
         elif path.exists():
             found.append(path)
@@ -112,17 +120,21 @@ def find_ofd_files(paths: Iterable[str | Path], recursive: bool = False) -> tupl
     return found, missing
 
 
-def read_invoice_files(files: Sequence[Path], limit: int | None = None) -> list[InvoiceFile]:
+def read_invoice_files(
+    files: Sequence[Path], limit: int | None = None, guard: PathGuard | None = None
+) -> list[InvoiceFile]:
     """Read the files found by :func:`find_ofd_files`, expanding ZIP archives.
 
-    With ``limit``, stop after that many OFD files.
+    With ``limit``, stop after that many OFD files. With ``guard``, every file is opened
+    through it, so one that leads outside its folder is refused even if it changed after
+    it was found.
     """
     results: list[InvoiceFile] = []
     for path in files:
         remaining = None if limit is None else limit - len(results)
         if remaining is not None and remaining <= 0:
             break
-        results.extend(_read_path(Path(path), remaining))
+        results.extend(_read_path(Path(path), remaining, guard))
     keys = Counter(key for key in map(_duplicate_key, results) if key)
     for result in results:
         key = _duplicate_key(result)
@@ -284,17 +296,17 @@ def summary(results: Sequence[InvoiceFile | dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _read_path(path: Path, limit: int | None = None) -> list[InvoiceFile]:
+def _read_path(path: Path, limit: int | None = None, guard: PathGuard | None = None) -> list[InvoiceFile]:
     if path.suffix.lower() != ".zip":
-        return [_read_one(str(path), path)]
-    members = _archive_members(path)
+        return [_read_one(str(path), path, guard)]
+    members = _archive_members(path, guard)
     if members is None:  # not a readable archive, or an OFD file named .zip
-        return [_read_one(str(path), path)]
+        return [_read_one(str(path), path, guard)]
     if not members:
         return [InvoiceFile(str(path), error=EMPTY_ARCHIVE)]
     results = []
     try:
-        with zipfile.ZipFile(path) as archive:
+        with _open(path, guard) as stream, zipfile.ZipFile(stream) as archive:
             for info in members[:limit]:
                 label = str(path / _normalize(_entry_name(info)))
                 if info.file_size > MAX_ARCHIVE_MEMBER_SIZE:
@@ -312,10 +324,10 @@ def _read_path(path: Path, limit: int | None = None) -> list[InvoiceFile]:
     return results
 
 
-def _archive_members(path: Path) -> list[zipfile.ZipInfo] | None:
+def _archive_members(path: Path, guard: PathGuard | None = None) -> list[zipfile.ZipInfo] | None:
     """The ``.ofd`` entries of a ZIP archive, or None if ``path`` is no archive of OFD files."""
     try:
-        with zipfile.ZipFile(path) as archive:
+        with _open(path, guard) as stream, zipfile.ZipFile(stream) as archive:
             infos = archive.infolist()
     except (zipfile.BadZipFile, OSError, ValueError, EOFError):
         return None
@@ -327,15 +339,24 @@ def _archive_members(path: Path) -> list[zipfile.ZipInfo] | None:
     return [info for name, info in sorted(names, key=lambda pair: pair[0]) if name.lower().endswith(".ofd")]
 
 
-def _read_one(label: str, source: Path | bytes) -> InvoiceFile:
+def _read_one(label: str, source: Path | bytes, guard: PathGuard | None = None) -> InvoiceFile:
     try:
-        with OFDDocument(source) as document:
-            invoice = document.invoice()
+        if isinstance(source, Path):
+            with _open(source, guard) as stream, OFDDocument(stream) as document:
+                invoice = document.invoice()
+        else:
+            with OFDDocument(source) as document:
+                invoice = document.invoice()
     except (OFDError, OSError) as exc:
         return InvoiceFile(label, error=str(exc))
     if invoice is None:
         return InvoiceFile(label, error=NO_INVOICE)
     return InvoiceFile(label, invoice=invoice)
+
+
+def _open(path: Path, guard: PathGuard | None) -> BinaryIO:
+    """Open a file for reading, through ``guard`` when there is one."""
+    return guard.open(path) if guard is not None else open(path, "rb")  # noqa: SIM115
 
 
 def _duplicate_key(result: InvoiceFile) -> tuple[str, str] | None:

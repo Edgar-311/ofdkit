@@ -225,14 +225,10 @@ def _element(element: ET.Element, parent_namespace: str | None, budget: list[int
 
 def _text(element_name: str, text: str, masker: _Masker) -> str:
     if element_name in _LOCATION_ELEMENTS:
-        kept = masker.path(text)
-    elif element_name in _NUMBER_ELEMENTS and _PATH_DATA.fullmatch(text) and not _LONG_NUMBER.search(text):
-        kept = text
-    elif element_name == "DocType" and text.casefold() in _KEYWORDS:
-        kept = text
-    else:
-        kept = mask(text)
-    return _shorten(kept)
+        return _shorten(masker.path(text))
+    numbers = element_name in _NUMBER_ELEMENTS and _PATH_DATA.fullmatch(text) and not _LONG_NUMBER.search(text)
+    keyword = element_name == "DocType" and text.casefold() in _KEYWORDS
+    return _shorten(text if numbers or keyword else mask(text))
 
 
 def _attribute(name: str, value: str, masker: _Masker) -> str:
