@@ -68,8 +68,8 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
    ofdkit batch 发票文件夹 -o 发票汇总.xlsx
    ```
 
-   Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红并写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行。
-   The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red with the reason) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
+   Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红，有其他提醒的发票（抬头不对、金额缺少或不是数字）标橙，都在"提醒"一栏写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行；不是数字的金额保留原样、不算进合计，合计下面会注明有几张。
+   The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red, other reminders such as another buyer or an amount that is missing or not a number in orange, each explained) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
 
 5. 检查发票抬头：加上 `--buyer`，购买方名称或税号不是你公司的发票会标出来（Excel 里标橙色）。名称和税号都要查，就写两次：
    Check who the invoices are made out to: with `--buyer`, invoices for another buyer name or tax ID are flagged (orange in Excel). Repeat it to check both:
@@ -78,8 +78,8 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
    ofdkit 发票文件夹 --buyer 某某有限公司 --buyer 91310000XXXXXXXXXX
    ```
 
-6. 按发票内容给文件改名，例如 `dzfp_2411…_20240528.ofd` 改成 `2024-05-28_某某公司_4449.00_2411….ofd`。不加 `--apply` 只是预览；同名的 PDF、XML 会一起改；改名记录可以用 `--undo` 改回去：
-   Rename invoice files after their contents. Without `--apply` it only previews; PDF and XML copies with the same name are renamed too; `--undo` restores the old names from the log:
+6. 按发票内容给文件改名，例如 `dzfp_2411…_20240528.ofd` 改成 `2024-05-28_某某公司_4449.00_2411….ofd`。不加 `--apply` 只是预览；同名的 PDF、XML 会一起改（其中一个改不了，这张发票的文件都保持原名）；改名前会先写好改名记录，写不了就一个文件也不改；用 `--undo` 可以按记录改回去，运行几次都没关系：
+   Rename invoice files after their contents. Without `--apply` it only previews; PDF and XML copies with the same name are renamed too (if one cannot be, that invoice's files all keep their names); the log is written before anything is renamed, and nothing is renamed if it cannot be; `--undo` restores the old names from the log and is safe to run again:
 
    ```bash
    ofdkit rename 发票文件夹            # 预览 / preview
@@ -135,8 +135,8 @@ Add `-r` to `show`, `batch` and `rename` to include subfolders. `ofdkit PATH` is
 }
 ```
 
-金额是字符串，不会丢失精度。如果"合计金额 + 合计税额"不等于"价税合计"，`warnings` 里会提示。
-Amounts are decimal strings, so no precision is lost. `warnings` notes totals that do not add up.
+金额是字符串，不会丢失精度。如果"合计金额 + 合计税额"不等于"价税合计"，或者某个金额不是数字（比如"无法识别"，这时保留原样），`warnings` 里会提示。汇总时只加真正的数字：0 就是 0，缺少的和不是数字的不算进合计，并单独计数（`not_summed`）。
+Amounts are decimal strings, so no precision is lost. `warnings` notes totals that do not add up and amounts that are not numbers (kept as found). Summaries add only real numbers: 0 counts as 0, while missing amounts and amounts that are not numbers are left out and counted in `not_summed`.
 
 ## 在 AI 工具里使用 / Use from AI tools
 
@@ -182,8 +182,8 @@ command = "uvx"
 args = ["--from", "ofdkit[mcp]", "ofdkit", "mcp"]
 ```
 
-加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。
-Add `--root FOLDER` to allow only files inside that folder.
+加上 `--root 文件夹` 可以只允许读取这个文件夹里的文件。判断的是文件的真实位置：文件夹里指向外面的快捷方式式链接（符号链接、Windows 的目录联接）不会被读取，汇总文件夹时会跳过并计数（`skipped_outside_root`）。
+Add `--root FOLDER` to allow only files inside that folder. The check uses each file's real location, so symbolic links and Windows directory junctions that lead outside are not read; folder listings skip and count them (`skipped_outside_root`).
 
 ### Agent Skill
 
@@ -224,8 +224,8 @@ for result in ofdkit.read_invoices("发票文件夹", recursive=True, buyer=["�
 
 ## 遇到读不出的文件 / Reporting a problem
 
-请不要把真实发票发到网上。用这个命令导出文件结构，文字会全部打码，只保留结构和位置，然后附在 [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose) 里：
-Please do not post real invoices. Export the structure with all text masked and attach it to a [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose):
+请不要把真实发票发到网上。用这个命令导出文件结构，然后附在 [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose) 里。文字、文件名和较长的号码会打码（汉字变成"字"，数字变成"0"，字母变成 x），只保留结构、坐标和 OFD 格式自己的名字（如 `Doc_0`、`Content.xml`）。打码是尽力而为，发出去之前请自己再看一遍：
+Please do not post real invoices. Export the structure and attach it to a [GitHub issue](https://github.com/Edgar-311/ofdkit/issues/new/choose). Text, file names and long numbers are masked; the structure, coordinates and the OFD format's own names (`Doc_0`, `Content.xml`) are kept. Masking is a best effort, so look through the file before posting it:
 
 ```bash
 ofdkit describe 文件.ofd -o 结构.json

@@ -6,6 +6,8 @@ anything: ``uvx --from "ofdkit[mcp]" ofdkit mcp``. Every tool only reads files.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__
+from ._guard import OutsideRootError, PathGuard
 from .batch import check_buyer, find_ofd_files, invoice_row, read_invoice_files, summary
 from .cli import file_info
 from .document import OFDDocument
@@ -34,23 +37,43 @@ _READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempoten
 
 
 def create_server(root: str | Path | None = None) -> MCPServer:
-    """Build the server. With ``root`` set, only files inside that folder can be read."""
-    allowed = Path(root).expanduser().resolve() if root else None
+    """Build the server. With ``root`` set, only files inside that folder can be read.
+
+    The check uses each file's real location with every link followed (symbolic links,
+    Windows directory junctions), right before the file is opened, for single files as
+    well as for every file a folder listing reads.
+    """
     server = MCPServer(name="ofdkit", version=__version__, instructions=INSTRUCTIONS)
 
-    def check(path: str) -> Path:
-        resolved = Path(path).expanduser().resolve()
-        if allowed is not None and not resolved.is_relative_to(allowed):
-            raise ToolError(f"{path} is outside the allowed folder {allowed}")
+    def new_guard() -> PathGuard | None:
+        return PathGuard(root) if root else None
+
+    def check(path: str, guard: PathGuard | None) -> Path:
+        try:
+            resolved = guard.check(path) if guard is not None else Path(path).expanduser().resolve()
+        except OutsideRootError as exc:
+            raise ToolError(str(exc)) from exc
         if not resolved.exists():
             raise ToolError(f"{path} does not exist")
         return resolved
 
-    def open_document(path: str) -> OFDDocument:
+    @contextmanager
+    def open_document(path: str) -> Iterator[OFDDocument]:
+        guard = new_guard()
+        resolved = check(path, guard)
         try:
-            return OFDDocument(check(path))
-        except OFDError as exc:
+            stream = guard.open(resolved) if guard is not None else open(resolved, "rb")  # noqa: SIM115
+        except OutsideRootError as exc:
+            raise ToolError(str(exc)) from exc
+        except OSError as exc:
             raise ToolError(f"cannot read {path}: {exc}") from exc
+        with stream:
+            try:
+                document = OFDDocument(stream)
+            except OFDError as exc:
+                raise ToolError(f"cannot read {path}: {exc}") from exc
+            with document:
+                yield document
 
     @server.tool(title="Read OFD text", annotations=_READ_ONLY)
     def read_ofd_text(path: str, markdown: bool = False, first_page: int = 1, last_page: int | None = None) -> str:
@@ -110,7 +133,9 @@ def create_server(root: str | Path | None = None) -> MCPServer:
 
         Returns one row per file (number, date, buyer, seller, amounts, item names, or the
         reason it could not be read), duplicate invoices flagged, and totals with and
-        without duplicates.
+        without duplicates. Totals add only amounts that are numbers; summary.not_summed
+        counts, per amount, the invoices where it is missing or not a number (such rows
+        keep the value as found and say so in warnings). Mention these to the user.
 
         Args:
             folder: Absolute path to a folder.
@@ -119,14 +144,19 @@ def create_server(root: str | Path | None = None) -> MCPServer:
                 tax ID, or both. Invoices for another buyer get a "buyer is not" warning
                 and are counted in summary.buyer_mismatches.
         """
-        directory = check(folder)
+        guard = new_guard()
+        directory = check(folder, guard)
         if not directory.is_dir():
             raise ToolError(f"{folder} is not a folder")
-        files, _ = find_ofd_files([directory], recursive)
-        results = read_invoice_files(files, limit=MAX_BATCH_FILES + 1)
+        files, _ = find_ofd_files([directory], recursive, guard=guard)
+        results = read_invoice_files(files, limit=MAX_BATCH_FILES + 1, guard=guard)
         truncated = len(results) > MAX_BATCH_FILES
         results = results[:MAX_BATCH_FILES]
         check_buyer(results, buyer or [])
-        return {"summary": summary(results), "truncated": truncated, "rows": [invoice_row(r) for r in results]}
+        listing = {"summary": summary(results), "truncated": truncated, "rows": [invoice_row(r) for r in results]}
+        if guard is not None:
+            # Links that lead outside the allowed folder: counted, never read.
+            listing["skipped_outside_root"] = len(guard.refused)
+        return listing
 
     return server

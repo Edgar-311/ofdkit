@@ -107,7 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     rename.add_argument("--only-ofd", action="store_true", help="只改 .ofd 文件；不加的话，同名的 PDF、XML 等也一起改")
     rename.add_argument("--undo", metavar="改名记录", help="按改名记录把文件名改回去")
 
-    describe = commands.add_parser("describe", help="导出文件结构（文字全部打码），用于报告问题")
+    describe = commands.add_parser("describe", help="导出文件结构（文字、文件名和号码打码），用于报告问题")
     describe.add_argument("file", metavar="文件", help="OFD 文件")
     describe.add_argument("-o", "--output", metavar="输出文件", help="保存到这个文件（UTF-8），不显示在屏幕上")
 
@@ -291,7 +291,7 @@ def _batch(args: argparse.Namespace) -> int:
 
 
 def _rename(args: argparse.Namespace) -> int:
-    from .rename import apply, plan, undo
+    from .rename import LogError, apply, plan, undo
 
     if args.undo:
         if args.paths:
@@ -305,6 +305,8 @@ def _rename(args: argparse.Namespace) -> int:
         for old, new in outcome.done:
             print(f"{old.name}\n  → {new.name}")
         print(f"\n已改回 {len(outcome.done)} 个文件。")
+        if outcome.unchanged:
+            print(f"另有 {len(outcome.unchanged)} 个文件本来就是原来的名字，不用改。")
         for old, new, reason in outcome.failed:
             _say(f"没能把 {old} 改回 {new.name}：{reason}")
         return EXIT_ERROR if outcome.failed else EXIT_OK
@@ -352,10 +354,16 @@ def _rename(args: argparse.Namespace) -> int:
         print(f"确认没问题的话，加上 --apply 再运行一次：\n{command}")
         return EXIT_OK
 
-    outcome = apply(planned)
+    try:
+        outcome = apply(planned)
+    except LogError as exc:
+        _say(f"错误：{exc}。为了能改回去，必须先写好改名记录，所以这次没有改任何文件。")
+        return EXIT_ERROR
     print(f"\n已改名 {len(outcome.done)} 个文件。")
     for old, new, reason in outcome.failed:
         _say(f"没能把 {old} 改成 {new.name}：{reason}")
+    for old, new in outcome.rolled_back:
+        _say(f"同一张发票的另一个文件没改成功，所以 {old.name} 保留了原来的名字")
     if outcome.log is not None:
         print(f"改名记录保存在 {outcome.log}\n要改回原来的名字，运行：ofdkit rename --undo {_quote(str(outcome.log))}")
     return EXIT_ERROR if outcome.failed else EXIT_OK
@@ -367,7 +375,7 @@ def _describe(args: argparse.Namespace) -> int:
     text = json.dumps(describe(args.file), ensure_ascii=False, indent=1)
     if args.output:
         Path(args.output).write_text(text + "\n", encoding="utf-8")
-        _say(f"已保存到 {args.output}。文字都已打码，分享之前请再检查一遍。")
+        _say(f"已保存到 {args.output}。文字、文件名和号码已经打码，但打码不能保证万无一失，分享之前请再检查一遍。")
     else:
         print(text)
     return EXIT_OK

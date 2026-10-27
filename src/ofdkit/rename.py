@@ -9,6 +9,7 @@ extension (the PDF and XML copies of the same invoice) are renamed along with th
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import datetime as dt
 import os
@@ -16,6 +17,7 @@ import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import IO, Any
 
 from .batch import _duplicate_key, _read_one, find_ofd_files, item_names, problems
 from .invoice import Invoice
@@ -89,8 +91,17 @@ class Outcome:
     done: list[tuple[Path, Path]] = field(default_factory=list)
     #: Renames that failed: (old path, new path, reason in Chinese).
     failed: list[tuple[Path, Path, str]] = field(default_factory=list)
-    #: The log that :func:`undo` reads, if one was written.
+    #: Renames undone right away because another file of the same invoice failed, so
+    #: that the OFD file and its copies keep matching names: (old path, new path).
+    rolled_back: list[tuple[Path, Path]] = field(default_factory=list)
+    #: For :func:`undo`: log lines whose file still has its old name (never renamed).
+    unchanged: list[tuple[Path, Path]] = field(default_factory=list)
+    #: The log that :func:`undo` reads, if one was kept.
     log: Path | None = None
+
+
+class LogError(OSError):
+    """The rename log could not be written, so nothing was renamed (or nothing more)."""
 
 
 def check_pattern(pattern: str) -> None:
@@ -179,55 +190,133 @@ def plan(
 def apply(renames: Sequence[Rename], log_folder: str | Path | None = None) -> Outcome:
     """Rename the files in ``renames``, never over an existing file.
 
-    The log of what was renamed is written to ``log_folder`` (by default the folder of
-    the first renamed file) as ``改名记录_<date>_<time>.csv``, for :func:`undo`.
+    The log for :func:`undo` comes first: ``改名记录_<date>_<time>.csv`` is created in
+    ``log_folder`` (by default the folder of the first file to rename) before anything is
+    renamed, and each rename is written to it, and flushed to disk, before it happens.
+    If the log cannot be created, LogError is raised and no file is touched; if a line
+    cannot be written, renaming stops there. So every rename that happened is in the
+    log, even after a crash. An OFD file and its PDF or XML copies are renamed together:
+    when one of them fails, the others of that invoice get their old names back.
     """
+    groups = [[(rename.source, rename.target), *rename.companions] for rename in renames if rename.target is not None]
     outcome = Outcome()
-    for rename in renames:
-        if rename.target is None:
-            continue
-        for old, new in [(rename.source, rename.target), *rename.companions]:
-            _move(old, new, outcome)
-            if outcome.failed and outcome.failed[-1][0] == rename.source:
-                break  # the OFD file kept its name, so its copies keep theirs too
-    if outcome.done:
-        folder = Path(log_folder) if log_folder is not None else outcome.done[0][1].parent
-        stamp = dt.datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")  # local time, as people read it
-        outcome.log = _unused(folder / f"改名记录_{stamp}.csv")
-        with open(outcome.log, "w", newline="", encoding="utf-8-sig") as stream:
-            writer = csv.writer(stream)
-            writer.writerow(["原来的文件", "新的文件"])
-            writer.writerows((str(old.resolve()), str(new.resolve())) for old, new in outcome.done)
+    if not groups:
+        return outcome
+    folder = Path(log_folder) if log_folder is not None else groups[0][0][1].parent
+    stamp = dt.datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")  # local time, as people read it
+    outcome.log, stream = _create_log(folder / f"改名记录_{stamp}.csv")
+    writer = csv.writer(stream)
+    try:
+        for group in groups:
+            renamed: list[tuple[Path, Path]] = []
+            for old, new in group:
+                try:
+                    _write_line(stream, writer, old, new)
+                except (OSError, UnicodeError) as exc:  # UnicodeError: a name that is not valid text
+                    outcome.failed.append((old, new, f"改名记录写不进去，已停止改名：{exc}"))
+                    _roll_back(renamed, outcome)
+                    return outcome
+                if not _move(old, new, outcome):
+                    _roll_back(renamed, outcome)  # the invoice's files keep matching names
+                    break
+                renamed.append((old, new))
+    finally:
+        stream.close()
+        if not outcome.done:  # nothing to undo, so no log to keep
+            with contextlib.suppress(OSError):
+                outcome.log.unlink()
+            outcome.log = None
     return outcome
 
 
 def undo(log: str | Path) -> Outcome:
-    """Give the files listed in a log written by :func:`apply` their old names back."""
+    """Give the files listed in a log written by :func:`apply` their old names back.
+
+    Safe to run more than once: a file that already has its old name (or was never
+    renamed, as after a failure) is listed in :attr:`Outcome.unchanged`.
+    """
     with open(log, newline="", encoding="utf-8-sig") as stream:
         rows = list(csv.reader(stream))
-    if not rows or rows[0] != ["原来的文件", "新的文件"]:
+    if not rows or rows[0] != _LOG_HEADER:
         raise ValueError(f"{log} 不是 ofdkit 写的改名记录")
     outcome = Outcome()
     for row in reversed(rows[1:]):
-        if len(row) == 2:
-            _move(Path(row[1]), Path(row[0]), outcome)
+        if len(row) != 2:
+            continue
+        old, new = Path(row[0]), Path(row[1])
+        if old.exists() and not new.exists():
+            outcome.unchanged.append((new, old))
+        else:
+            _move(new, old, outcome)
     return outcome
 
 
-def _move(old: Path, new: Path, outcome: Outcome) -> None:
+_LOG_HEADER = ["原来的文件", "新的文件"]
+
+
+def _create_log(path: Path) -> tuple[Path, IO[str]]:
+    """Create a new log, header written and on disk, or raise LogError."""
+    candidate, number = path, 1
+    while True:
+        try:
+            stream = open(candidate, "x", newline="", encoding="utf-8-sig")  # noqa: SIM115
+            break
+        except FileExistsError:
+            number += 1
+            candidate = path.with_name(f"{path.stem} ({number}){path.suffix}")
+        except OSError as exc:
+            raise LogError(f"无法创建改名记录 {candidate}：{exc}") from exc
+    try:
+        writer = csv.writer(stream)
+        writer.writerow(_LOG_HEADER)
+        _sync(stream)
+    except OSError as exc:
+        stream.close()
+        with contextlib.suppress(OSError):
+            candidate.unlink()
+        raise LogError(f"无法写入改名记录 {candidate}：{exc}") from exc
+    return candidate, stream
+
+
+def _write_line(stream: IO[str], writer: Any, old: Path, new: Path) -> None:
+    writer.writerow([str(old.resolve()), str(new.resolve())])
+    _sync(stream)
+
+
+def _sync(stream: IO[str]) -> None:
+    stream.flush()
+    os.fsync(stream.fileno())
+
+
+def _roll_back(renamed: list[tuple[Path, Path]], outcome: Outcome) -> None:
+    """Give the files of one invoice that were already renamed their old names back."""
+    for old, new in reversed(renamed):
+        try:
+            if old.exists():
+                raise FileExistsError(f"{old} 已经存在")
+            os.rename(new, old)
+        except OSError as exc:  # the log still has this line, so undo can do it later
+            outcome.failed.append((new, old, f"没能改回原来的名字：{exc}"))
+            continue
+        outcome.done.remove((old, new))
+        outcome.rolled_back.append((old, new))
+
+
+def _move(old: Path, new: Path, outcome: Outcome) -> bool:
     if not old.exists():
         outcome.failed.append((old, new, "文件不见了"))
-        return
+        return False
     if new.exists() and not _same_file(old, new):
         outcome.failed.append((old, new, "新名字已经有文件在用"))
-        return
+        return False
     try:
         os.rename(old, new)
     except OSError as exc:
         reason = "文件可能正在被别的软件打开" if isinstance(exc, PermissionError) else str(exc)
         outcome.failed.append((old, new, reason))
-        return
+        return False
     outcome.done.append((old, new))
+    return True
 
 
 def _same_file(a: Path, b: Path) -> bool:
@@ -274,12 +363,4 @@ def _free_stem(stem: str, suffixes: list[str], taken: set[str]) -> str:
     while any((candidate + suffix).casefold() in taken for suffix in suffixes):
         number += 1
         candidate = f"{stem} ({number})"
-    return candidate
-
-
-def _unused(path: Path) -> Path:
-    candidate, number = path, 1
-    while candidate.exists():
-        number += 1
-        candidate = path.with_name(f"{path.stem} ({number}){path.suffix}")
     return candidate

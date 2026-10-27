@@ -24,7 +24,7 @@ from .ofdbuilder import OFDBuilder, Text, zip_parts
 
 
 def invoice_ofd(number, total, code=None, seller="测试单位乙"):
-    data = {"发票号码": number, "价税合计": total, "销售方名称": seller}
+    data = {"发票号码": number, "价税合计": total, "合计金额": total, "合计税额": "0.00", "销售方名称": seller}
     if code:
         data["发票代码"] = code
     return OFDBuilder(custom_data=data).build([[Text("测试样例", 20, 30)]])
@@ -149,7 +149,12 @@ class TextTest(unittest.TestCase):
         self.assertEqual(item_names(Invoice()), "")
 
     def test_problems_in_chinese(self):
-        invoice = Invoice(warnings=["amount_without_tax + tax_amount != total_amount (1.00 + 0.10 != 1.20)", "其他"])
+        invoice = Invoice(
+            amount_without_tax="1.00",
+            tax_amount="0.10",
+            total_amount="1.20",
+            warnings=["amount_without_tax + tax_amount != total_amount (1.00 + 0.10 != 1.20)", "其他"],
+        )
         self.assertEqual(
             problems(InvoiceFile("a.ofd", invoice=invoice)), ["金额 + 税额 ≠ 价税合计（1.00 + 0.10 ≠ 1.20）", "其他"]
         )
@@ -165,8 +170,12 @@ class TextTest(unittest.TestCase):
             self.assertEqual(len(ofdkit.read_invoices([path, path])), 2)
 
 
+# Complete amounts, so that the only problems left are the ones a test is about.
+AMOUNTS = {"amount_without_tax": "1.00", "tax_amount": "0.10", "total_amount": "1.10"}
+
+
 class BuyerTest(unittest.TestCase):
-    invoice = Invoice(buyer=Party(name="测试单位（甲）", tax_id="91000000TEST00001X"))
+    invoice = Invoice(buyer=Party(name="测试单位（甲）", tax_id="91000000TEST00001X"), **AMOUNTS)
 
     def test_names_and_tax_ids(self):
         self.assertEqual(buyer_mismatch(self.invoice, ["测试单位(甲)", " 91000000test00001x "]), [])
@@ -178,7 +187,7 @@ class BuyerTest(unittest.TestCase):
     def test_check_buyer_marks_results(self):
         results = [
             InvoiceFile("a.ofd", invoice=self.invoice),
-            InvoiceFile("b.ofd", invoice=Invoice(buyer=Party(name="个人"))),
+            InvoiceFile("b.ofd", invoice=Invoice(buyer=Party(name="个人"), **AMOUNTS)),
             InvoiceFile("c.ofd", error=NO_INVOICE),
         ]
         check_buyer(results, ["测试单位（甲）"])
@@ -188,7 +197,7 @@ class BuyerTest(unittest.TestCase):
         self.assertEqual(summary(results)["buyer_mismatches"], 1)
 
     def test_tax_id_problem_text(self):
-        result = InvoiceFile("a.ofd", invoice=Invoice(), buyer_mismatch=["91000000TEST00002X"])
+        result = InvoiceFile("a.ofd", invoice=Invoice(**AMOUNTS), buyer_mismatch=["91000000TEST00002X"])
         self.assertEqual(problems(result), ["购买方税号不是 91000000TEST00002X（发票上是 空的）"])
 
     def test_read_invoices_with_buyer(self):

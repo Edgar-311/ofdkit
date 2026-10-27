@@ -5,6 +5,37 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Fixed
+
+- `ofdkit rename --apply` renamed files first and wrote the log for `--undo` last, so
+  a log that could not be written left renamed files and no way back. Now the log is
+  created before anything is renamed (if it cannot be, nothing is renamed), each
+  rename is written to it and flushed to disk before it happens, and renaming stops if
+  a line cannot be written. An OFD file and its PDF or XML copies are renamed together:
+  if one fails, the others go back to their old names. `--undo` can be run more than
+  once and skips files that already have their old names.
+- Amounts that are not numbers were summed as 0 without a word: an invoice whose
+  价税合计 read "无法识别" gave `total_amount_sum` "0" with no warning. Now such a value
+  is kept as found and noted in the invoice's `warnings`; sums add only plain decimal
+  numbers (a real `0.00` still counts); the summary's new `not_summed` counts, for each
+  amount, the invoices where it is missing or not a number; and the command line, the
+  Excel workbook (an orange row, a note under the totals, the value kept as text) and
+  the MCP tool all use this same rule. `NaN`, `Infinity` and `1e5` are not amounts.
+- MCP `--root`: `list_ofd_invoices` read OFD files behind links inside the allowed
+  folder, such as a symbolic link to a file elsewhere or, on Windows, a directory
+  junction followed by a recursive listing. Every file is now checked by its real
+  location right before it is opened (for single files, folder listings and ZIP
+  archives alike), links to folders outside are not entered, and listings report how
+  many entries they skipped in `skipped_outside_root`.
+- `ofdkit describe` no longer copies entry names, locations (`FileLoc`, `DocRoot`,
+  `BaseLoc` ...) and ASCII attribute values as they are. A name such as
+  `Doc_0/Attachs/TEST_COMPANY_12345678901234567890.pdf` used to appear unchanged; now
+  only the OFD layout's own names (`Doc_0`, `Pages`, `Content.xml` ...) are kept, other
+  path parts are masked the same way wherever they appear so references can still be
+  followed, attribute values other than numbers and format keywords are masked, and any
+  run of seven or more digits is masked. The help text no longer says that everything is
+  masked: masking is a best effort, and the output should be checked before sharing.
+
 ## [0.3.1] - 2026-10-28
 
 ### Added

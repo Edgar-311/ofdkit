@@ -65,6 +65,47 @@ class DescribeTest(unittest.TestCase):
         self.assertTrue(tag["needed_repair"])
         self.assertNotIn("00000001", json.dumps(data, ensure_ascii=False))
 
+    def test_names_and_numbers_in_paths_and_references_are_masked(self):
+        # Regression: entry names, FileLoc and other values used to be copied as they were.
+        secret = "TEST_COMPANY_12345678901234567890"
+        parts = OFDBuilder().parts([[Text("测试样例", 20, 30)]], attachment=("data.xml", "<Data/>"))
+        parts[f"Doc_0/Attachs/{secret}.pdf"] = b"%PDF not really"
+        parts["Doc_0/Attachs/TEST_COMPANY_12345678901234567891.pdf"] = b"%PDF a second one"
+        listing = parts["Doc_0/Attachs/Attachments.xml"].decode()
+        attachment = (
+            '<ofd:Attachment ID="9" Name="x" Format="pdf" Usage="13800000000" Company="TEST COMPANY"'
+            ' Note="ZhangSan" Visible="true" Box="0 0 210.5 297">'
+            f"<ofd:FileLoc>{secret}.pdf</ofd:FileLoc></ofd:Attachment>"
+            '<ofd:Attachment ID="10"><ofd:FileLoc>/Doc_0/Attachs/TEST_COMPANY_12345678901234567891.pdf</ofd:FileLoc>'
+            "</ofd:Attachment>"
+        )
+        parts["Doc_0/Attachs/Attachments.xml"] = listing.replace("</ofd:Attachments>", attachment + "</ofd:Attachments>").encode()
+        parts["Doc_0/Attachs/data.xml"] = '<?xml version="1.0"?><Data><编号12345678>x</编号12345678><Item No12345678="1"/></Data>'.encode()
+        data = describe(zip_parts(parts))
+        raw = json.dumps(data, ensure_ascii=False)
+        for leaked in ("TEST_COMPANY", "TEST COMPANY", "12345678901234567890", "13800000000", "ZhangSan", "编号", "12345678"):
+            self.assertNotIn(leaked, raw)
+
+        names = [entry["name"] for entry in data["entries"]]
+        first, second = (name for name in names if name.endswith(".pdf"))
+        self.assertEqual(first, "Doc_0/Attachs/XXXX_XXXXXXX_00000000000000000000.pdf")
+        self.assertEqual(second, "Doc_0/Attachs/XXXX_XXXXXXX_00000000000000000000~2.pdf", "two names that mask alike stay apart")
+        attachments = data["xml"]["Doc_0/Attachs/Attachments.xml"]["root"]["children"]
+        locations = [child["children"][0]["text"] for child in attachments if child["attrs"]["ID"] in ("9", "10")]
+        self.assertEqual(locations, [first.rsplit("/", 1)[1], "/" + second], "references point at the masked entries")
+        attrs = attachments[-2]["attrs"]
+        self.assertEqual(attrs["Usage"], "00000000000")
+        self.assertEqual((attrs["Visible"], attrs["Box"], attrs["Format"]), ("true", "0 0 210.5 297", "xxx"))
+        self.assertIn("Doc_0/Attachs/xxxx.xml", data["xml"], "an attachment name that is not a layout name is masked too")
+
+    def test_layout_names_are_kept(self):
+        data = describe(zip_parts(_file()))
+        names = {entry["name"] for entry in data["entries"]}
+        self.assertTrue({"OFD.xml", "Doc_0/Document.xml", "Doc_0/Pages/Page_0/Content.xml", "Doc_0/PublicRes.xml"} <= names)
+        pages = data["xml"]["Doc_0/Document.xml"]["root"]["children"][1]["children"]
+        self.assertEqual(pages[0]["attrs"]["BaseLoc"], "Pages/Page_0/Content.xml")
+        self.assertIn("look through", data["note"])
+
     def test_cli_writes_a_file(self):
         import tempfile
         from pathlib import Path

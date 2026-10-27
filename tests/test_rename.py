@@ -3,9 +3,11 @@
 import contextlib
 import csv
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from ofdkit import rename
 from ofdkit.cli import EXIT_ERROR, EXIT_OK, main
@@ -121,6 +123,141 @@ class RenameTest(unittest.TestCase):
     def test_missing_path(self):
         with self.assertRaises(FileNotFoundError):
             rename.plan([self.root / "missing"])
+
+
+class RecoveryTest(unittest.TestCase):
+    """The log is written before anything is renamed, and one invoice's files move together."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        (self.root / "a.ofd").write_bytes(invoice_ofd("00000001"))
+        (self.root / "a.pdf").write_bytes(b"pdf copy of a")
+        (self.root / "b.ofd").write_bytes(invoice_ofd("00000002"))
+        self.original = self.names()
+
+    def names(self):
+        return sorted(path.name for path in self.root.iterdir() if not path.name.startswith("改名记录"))
+
+    def logs(self):
+        return sorted(self.root.glob("改名记录_*.csv"))
+
+    def test_no_log_means_no_renames(self):
+        # Regression: files used to be renamed first, and the log written at the end.
+        real_open = open
+
+        def deny_log(path, *args, **kwargs):
+            if "改名记录" in str(path):
+                raise PermissionError(13, "Permission denied", str(path))
+            return real_open(path, *args, **kwargs)
+
+        with mock.patch("builtins.open", deny_log), self.assertRaises(rename.LogError):
+            rename.apply(rename.plan([self.root]))
+        self.assertEqual(self.names(), self.original)
+        with mock.patch("builtins.open", deny_log):
+            code, _, err = run("rename", str(self.root), "--apply")
+        self.assertEqual(code, EXIT_ERROR)
+        self.assertIn("没有改任何文件", err)
+        self.assertEqual(self.names(), self.original)
+
+    def test_log_folder_that_does_not_exist(self):
+        with self.assertRaises(rename.LogError):
+            rename.apply(rename.plan([self.root]), log_folder=self.root / "missing")
+        self.assertEqual(self.names(), self.original)
+
+    def test_every_rename_is_in_the_log_before_it_happens(self):
+        seen = []
+        real_rename = os.rename
+
+        def check_then_rename(old, new):
+            (log,) = self.logs()
+            seen.append(str(Path(new).resolve()) in log.read_text(encoding="utf-8-sig"))
+            real_rename(old, new)
+
+        with mock.patch("ofdkit.rename.os.rename", check_then_rename):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual(seen, [True, True, True])
+        self.assertEqual(len(outcome.done), 3)
+
+    def test_log_that_stops_being_writable_stops_renaming(self):
+        real_write = rename._write_line
+        calls = []
+
+        def fail_third(*args):
+            calls.append(args)
+            if len(calls) == 3:  # a.ofd and a.pdf are logged and renamed; b.ofd is not
+                raise OSError(28, "No space left on device")
+            real_write(*args)
+
+        with mock.patch.object(rename, "_write_line", fail_third):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual([old.name for old, _ in outcome.done], ["a.ofd", "a.pdf"])
+        self.assertIn("改名记录写不进去", outcome.failed[0][2])
+        self.assertTrue((self.root / "b.ofd").exists())
+        rename.undo(outcome.log)
+        self.assertEqual(self.names(), self.original)
+
+    def test_a_name_the_log_cannot_hold_stops_renaming(self):
+        with mock.patch.object(rename, "_write_line", side_effect=UnicodeEncodeError("utf-8", "\udcff", 0, 1, "surrogate")):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual(outcome.done, [])
+        self.assertIn("改名记录写不进去", outcome.failed[0][2])
+        self.assertEqual(self.names(), self.original)
+
+    def test_a_copy_that_fails_takes_its_invoice_back(self):
+        real_rename = os.rename
+
+        def pdf_is_open(old, new):
+            if str(old).endswith("a.pdf"):
+                raise PermissionError(13, "in use", str(old))
+            real_rename(old, new)
+
+        with mock.patch("ofdkit.rename.os.rename", pdf_is_open):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual([old.name for old, _ in outcome.rolled_back], ["a.ofd"])
+        self.assertEqual([(old.name, reason) for old, _, reason in outcome.failed], [("a.pdf", "文件可能正在被别的软件打开")])
+        self.assertEqual([old.name for old, _ in outcome.done], ["b.ofd"])
+        self.assertTrue((self.root / "a.ofd").exists() and (self.root / "a.pdf").exists(), "a keeps matching names")
+
+        restored = rename.undo(outcome.log)
+        self.assertEqual([new.name for _, new in restored.done], ["b.ofd"])
+        self.assertEqual(sorted(old.name for _, old in restored.unchanged), ["a.ofd", "a.pdf"])
+        self.assertEqual(restored.failed, [])
+        self.assertEqual(self.names(), self.original)
+
+    def test_failed_roll_back_stays_in_the_log(self):
+        real_rename = os.rename
+
+        def stuck(old, new):
+            if str(old).endswith("a.pdf") or str(new).endswith("a.ofd"):
+                raise PermissionError(13, "in use", str(old))
+            real_rename(old, new)
+
+        with mock.patch("ofdkit.rename.os.rename", stuck):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual(len(outcome.failed), 2)  # a.pdf, then a.ofd could not go back
+        self.assertIsNotNone(outcome.log)
+        self.assertIn("a.ofd", outcome.log.read_text(encoding="utf-8-sig"))
+        rename.undo(outcome.log)
+        self.assertEqual(self.names(), self.original)
+
+    def test_nothing_renamed_leaves_no_log(self):
+        with mock.patch("ofdkit.rename.os.rename", side_effect=PermissionError(13, "in use")):
+            outcome = rename.apply(rename.plan([self.root]))
+        self.assertEqual(outcome.done, [])
+        self.assertIsNone(outcome.log)
+        self.assertEqual(self.logs(), [])
+
+    def test_undo_twice_is_harmless(self):
+        outcome = rename.apply(rename.plan([self.root]))
+        rename.undo(outcome.log)
+        again = rename.undo(outcome.log)
+        self.assertEqual((again.done, again.failed), ([], []))
+        self.assertEqual(len(again.unchanged), 3)
+        code, out, _ = run("rename", "--undo", str(outcome.log))
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("3 个文件本来就是原来的名字", out)
 
 
 class NewNameTest(unittest.TestCase):

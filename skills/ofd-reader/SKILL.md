@@ -43,7 +43,9 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
 ## Working with the results
 
 - Amounts are decimal strings. Add them with exact decimal arithmetic, not floats.
-  `batch` prints the totals on stderr, also without duplicates.
+  `batch` prints the totals on stderr, also without duplicates. An amount that is not a
+  number (such as 无法识别) is kept as found, noted in `warnings`, and left out of the
+  totals; tell the user how many were left out rather than presenting a total as complete.
 - Check `warnings`: they report totals that do not add up and duplicate invoices (the
   same invoice number, and the same invoice code for older invoices, in several files:
   the same invoice submitted twice). Point these out to the user.
@@ -64,7 +66,9 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
 - Text drawn as images or vector shapes cannot be extracted. If `text` returns little or
   nothing for a file that clearly has content, the file is probably a scan.
 - If ofdkit reads a file wrongly, suggest reporting it with `uvx ofdkit describe FILE.ofd
-  -o structure.json`, which masks all text, at https://github.com/Edgar-311/ofdkit/issues.
+  -o structure.json`, which masks text, file names and long numbers, at
+  https://github.com/Edgar-311/ofdkit/issues. Ask the user to look through the file
+  before posting it; masking is a best effort.
   Never upload the user's real file anywhere.
 
 ## Privacy

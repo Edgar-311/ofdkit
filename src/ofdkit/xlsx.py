@@ -15,21 +15,21 @@ import re
 import zipfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 from typing import IO, Any
 from unicodedata import east_asian_width
 from xml.sax.saxutils import escape
 
 from .batch import InvoiceFile, item_names, problems, summary
-from .invoice import Invoice, LineItem
+from .invoice import Invoice, LineItem, parse_amount
 
 #: Kinds of cell. ``text`` keeps digits as typed; ``money`` and ``number`` are numeric.
 TEXT, INTEGER, MONEY, NUMBER, DATE = "text", "integer", "money", "number", "date"
 
 # Row colours: header, a duplicate invoice, a file without invoice data, an unreadable file,
-# an invoice for another buyer.
-_FILLS = {"header": "DDEBF7", "duplicate": "FFF2CC", "not_invoice": "F2F2F2", "error": "FCE4E4", "mismatch": "FCE4D6"}
+# an invoice with any other reminder (another buyer, an amount missing or not a number).
+_FILLS = {"header": "DDEBF7", "duplicate": "FFF2CC", "not_invoice": "F2F2F2", "error": "FCE4E4", "attention": "FCE4D6"}
 _NUMBER_FORMATS = {TEXT: 49, INTEGER: 1, MONEY: 4, NUMBER: 0, DATE: 164}  # 164 is yyyy-mm-dd, below
 _MAX_CELL_TEXT = 32_767  # Excel's limit
 _ILLEGAL_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
@@ -96,10 +96,11 @@ def _invoice_sheet(results: Sequence[InvoiceFile]) -> _Sheet:
         values = [getter(invoice) if invoice else None for _, getter, _ in _INVOICE_COLUMNS]
         cells = [_Cell(number, INTEGER), *(_Cell(v, k) for v, (_, _, k) in zip(values, _INVOICE_COLUMNS))]
         cells += [_Cell("；".join(problems(result))), _Cell(result.file)]
+        found = problems(result)
         if invoice is None:
-            fill = "not_invoice" if problems(result)[0].startswith("不是发票") else "error"
-        elif result.buyer_mismatch:
-            fill = "mismatch"
+            fill = "not_invoice" if found[0].startswith("不是发票") else "error"
+        elif any(problem != "发票号码重复" for problem in found):
+            fill = "attention"
         else:
             fill = "duplicate" if result.duplicate else None
         rows.append((cells, fill))
@@ -118,6 +119,16 @@ def _invoice_sheet(results: Sequence[InvoiceFile]) -> _Sheet:
             cells = [_Cell(None) for _ in header]
             cells[0] = _Cell("合计（重复的发票只算一次）", bold=True)
             cells[money["价税合计"]] = _Cell(totals["total_amount_sum_without_duplicates"], MONEY, bold=True)
+            rows.append((cells, None))
+        left_out = [
+            f"{label} {counts['invalid'] + counts['missing']} 张"
+            for column, label in (("total_amount", "价税合计"), ("amount_without_tax", "金额"), ("tax_amount", "税额"))
+            if (counts := totals["not_summed"][column])["invalid"] + counts["missing"]
+        ]
+        if left_out:
+            cells = [_Cell(None) for _ in header]
+            note = f"注意：这些金额缺少或不是数字，没有算进合计：{'，'.join(left_out)}（见“提醒”一栏）"
+            cells[0] = _Cell(note, bold=True)
             rows.append((cells, None))
     return _Sheet("发票", header, kinds, rows)
 
@@ -273,11 +284,10 @@ def _convert(value: Any, kind: str) -> Any:
             return (dt.date(*map(int, match.groups())) - _EXCEL_EPOCH).days
         except ValueError:
             return None
-    try:
-        number = Decimal(str(value))
-    except InvalidOperation:
-        return None
-    return format(number, "f") if number.is_finite() else None
+    # Numbers follow the same rule as the sums in the summary: plain decimals only, so
+    # "无法识别", "NaN" or "1e5" stay text and SUBTOTAL leaves them out, as the summary does.
+    number = parse_amount(str(value))
+    return format(number, "f") if number is not None else None
 
 
 def _shown(value: Any, kind: str) -> str:

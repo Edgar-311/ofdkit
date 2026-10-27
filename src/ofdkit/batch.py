@@ -13,13 +13,14 @@ import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
+from ._guard import PathGuard
 from .document import OFDDocument
 from .errors import OFDError
-from .invoice import Invoice
+from .invoice import AMOUNT_FIELDS, NOT_A_NUMBER, Invoice, parse_amount
 from .package import MAX_ENTRIES, _entry_name, _normalize
 
 COLUMNS = [
@@ -87,23 +88,30 @@ def read_invoices(
     return results
 
 
-def find_ofd_files(paths: Iterable[str | Path], recursive: bool = False) -> tuple[list[Path], list[str]]:
+def find_ofd_files(
+    paths: Iterable[str | Path], recursive: bool = False, guard: PathGuard | None = None
+) -> tuple[list[Path], list[str]]:
     """Files to read in ``paths``, plus the paths that do not exist.
 
     Files given directly are always kept. In folders, ``.ofd`` files are kept, and
-    ``.zip`` files that contain at least one ``.ofd`` file.
+    ``.zip`` files that contain at least one ``.ofd`` file. With ``guard``, anything whose
+    real location is outside the guard's folder is left out (and noted in
+    ``guard.refused``), and links to folders outside it are not followed.
     """
     found: list[Path] = []
     missing: list[str] = []
     for raw in paths:
         path = Path(raw)
-        if path.is_dir():
-            candidates = path.rglob("*") if recursive else path.glob("*")
+        if guard is not None and path.exists() and not guard.inside(path):
+            guard.refused.append(str(path))
+        elif path.is_dir():
+            if guard is not None:
+                candidates = list(guard.walk(path, recursive))
+            else:
+                candidates = [p for p in (path.rglob("*") if recursive else path.glob("*")) if p.is_file()]
             for candidate in sorted(candidates):
-                if not candidate.is_file():
-                    continue
                 suffix = candidate.suffix.lower()
-                if suffix == ".ofd" or (suffix == ".zip" and _archive_members(candidate)):
+                if suffix == ".ofd" or (suffix == ".zip" and _archive_members(candidate, guard)):
                     found.append(candidate)
         elif path.exists():
             found.append(path)
@@ -112,17 +120,21 @@ def find_ofd_files(paths: Iterable[str | Path], recursive: bool = False) -> tupl
     return found, missing
 
 
-def read_invoice_files(files: Sequence[Path], limit: int | None = None) -> list[InvoiceFile]:
+def read_invoice_files(
+    files: Sequence[Path], limit: int | None = None, guard: PathGuard | None = None
+) -> list[InvoiceFile]:
     """Read the files found by :func:`find_ofd_files`, expanding ZIP archives.
 
-    With ``limit``, stop after that many OFD files.
+    With ``limit``, stop after that many OFD files. With ``guard``, every file is opened
+    through it, so one that leads outside its folder is refused even if it changed after
+    it was found.
     """
     results: list[InvoiceFile] = []
     for path in files:
         remaining = None if limit is None else limit - len(results)
         if remaining is not None and remaining <= 0:
             break
-        results.extend(_read_path(Path(path), remaining))
+        results.extend(_read_path(Path(path), remaining, guard))
     keys = Counter(key for key in map(_duplicate_key, results) if key)
     for result in results:
         key = _duplicate_key(result)
@@ -222,6 +234,9 @@ def _normal_name(value: str) -> str:
     return re.sub(r"\s+", "", value).replace("（", "(").replace("）", ")").casefold()
 
 
+#: Chinese names of the invoice-level amounts, for people.
+AMOUNT_LABELS = {"amount_without_tax": "金额", "tax_amount": "税额", "total_amount": "价税合计"}
+
 _TOTALS_WARNING = re.compile(r"amount_without_tax \+ tax_amount != total_amount \((.*) \+ (.*) != (.*)\)")
 
 
@@ -244,7 +259,15 @@ def problems(result: InvoiceFile) -> list[str]:
         actual = (invoice.buyer.tax_id if tax_id else invoice.buyer.name) if invoice else None
         label = "购买方税号" if tax_id else "购买方"
         found.append(f"{label}不是 {expected}（发票上是 {actual or '空的'}）")
+    for attribute in AMOUNT_FIELDS if invoice else []:
+        value = getattr(invoice, attribute)
+        if value is None:
+            found.append(f"缺少{AMOUNT_LABELS[attribute]}")
+        elif parse_amount(value) is None:
+            found.append(f"{AMOUNT_LABELS[attribute]}不是数字（“{value}”）")
     for warning in invoice.warnings if invoice else []:
+        if f" {NOT_A_NUMBER}: " in warning:
+            continue  # said above, in Chinese
         match = _TOTALS_WARNING.fullmatch(warning)
         found.append(f"金额 + 税额 ≠ 价税合计（{match[1]} + {match[2]} ≠ {match[3]}）" if match else warning)
     return found
@@ -254,7 +277,10 @@ def summary(results: Sequence[InvoiceFile | dict[str, Any]]) -> dict[str, Any]:
     """Counts and sums over the results (or rows from :func:`invoice_rows`).
 
     ``total_amount_sum`` adds every invoice; ``total_amount_sum_without_duplicates``
-    counts an invoice that appears in several files only once.
+    counts an invoice that appears in several files only once. Sums include only
+    amounts that are numbers: ``not_summed`` counts, for each amount, the invoices where
+    it is missing and where it is present but not a number (such as "无法识别"), so a
+    sum is complete only when both counts are 0.
     """
     rows = [result if isinstance(result, dict) else invoice_row(result) for result in results]
     invoices = [row for row in rows if not row["error"]]
@@ -268,7 +294,16 @@ def summary(results: Sequence[InvoiceFile | dict[str, Any]]) -> dict[str, Any]:
         unique.append(row)
 
     def total(column: str, selected: list[dict[str, Any]]) -> str:
-        return str(sum((_decimal(row[column]) for row in selected), Decimal(0)))
+        values = (parse_amount(str(row[column])) for row in selected if row[column] != "")
+        return str(sum((value for value in values if value is not None), Decimal(0)))
+
+    not_summed = {
+        column: {
+            "missing": sum(1 for row in invoices if row[column] == ""),
+            "invalid": sum(1 for row in invoices if row[column] != "" and parse_amount(str(row[column])) is None),
+        }
+        for column in AMOUNT_FIELDS
+    }
 
     return {
         "files": len(rows),
@@ -281,20 +316,21 @@ def summary(results: Sequence[InvoiceFile | dict[str, Any]]) -> dict[str, Any]:
         "tax_amount_sum": total("tax_amount", invoices),
         "total_amount_sum": total("total_amount", invoices),
         "total_amount_sum_without_duplicates": total("total_amount", unique),
+        "not_summed": not_summed,
     }
 
 
-def _read_path(path: Path, limit: int | None = None) -> list[InvoiceFile]:
+def _read_path(path: Path, limit: int | None = None, guard: PathGuard | None = None) -> list[InvoiceFile]:
     if path.suffix.lower() != ".zip":
-        return [_read_one(str(path), path)]
-    members = _archive_members(path)
+        return [_read_one(str(path), path, guard)]
+    members = _archive_members(path, guard)
     if members is None:  # not a readable archive, or an OFD file named .zip
-        return [_read_one(str(path), path)]
+        return [_read_one(str(path), path, guard)]
     if not members:
         return [InvoiceFile(str(path), error=EMPTY_ARCHIVE)]
     results = []
     try:
-        with zipfile.ZipFile(path) as archive:
+        with _open(path, guard) as stream, zipfile.ZipFile(stream) as archive:
             for info in members[:limit]:
                 label = str(path / _normalize(_entry_name(info)))
                 if info.file_size > MAX_ARCHIVE_MEMBER_SIZE:
@@ -312,10 +348,10 @@ def _read_path(path: Path, limit: int | None = None) -> list[InvoiceFile]:
     return results
 
 
-def _archive_members(path: Path) -> list[zipfile.ZipInfo] | None:
+def _archive_members(path: Path, guard: PathGuard | None = None) -> list[zipfile.ZipInfo] | None:
     """The ``.ofd`` entries of a ZIP archive, or None if ``path`` is no archive of OFD files."""
     try:
-        with zipfile.ZipFile(path) as archive:
+        with _open(path, guard) as stream, zipfile.ZipFile(stream) as archive:
             infos = archive.infolist()
     except (zipfile.BadZipFile, OSError, ValueError, EOFError):
         return None
@@ -327,15 +363,24 @@ def _archive_members(path: Path) -> list[zipfile.ZipInfo] | None:
     return [info for name, info in sorted(names, key=lambda pair: pair[0]) if name.lower().endswith(".ofd")]
 
 
-def _read_one(label: str, source: Path | bytes) -> InvoiceFile:
+def _read_one(label: str, source: Path | bytes, guard: PathGuard | None = None) -> InvoiceFile:
     try:
-        with OFDDocument(source) as document:
-            invoice = document.invoice()
+        if isinstance(source, Path):
+            with _open(source, guard) as stream, OFDDocument(stream) as document:
+                invoice = document.invoice()
+        else:
+            with OFDDocument(source) as document:
+                invoice = document.invoice()
     except (OFDError, OSError) as exc:
         return InvoiceFile(label, error=str(exc))
     if invoice is None:
         return InvoiceFile(label, error=NO_INVOICE)
     return InvoiceFile(label, invoice=invoice)
+
+
+def _open(path: Path, guard: PathGuard | None) -> BinaryIO:
+    """Open a file for reading, through ``guard`` when there is one."""
+    return guard.open(path) if guard is not None else open(path, "rb")
 
 
 def _duplicate_key(result: InvoiceFile) -> tuple[str, str] | None:
@@ -344,10 +389,3 @@ def _duplicate_key(result: InvoiceFile) -> tuple[str, str] | None:
     if invoice is None or not invoice.invoice_number:
         return None
     return (invoice.invoice_code or "", invoice.invoice_number)
-
-
-def _decimal(value: str) -> Decimal:
-    try:
-        return Decimal(value)
-    except (InvalidOperation, TypeError):
-        return Decimal(0)
