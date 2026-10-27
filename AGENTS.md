@@ -98,7 +98,7 @@ Only after the maintainer replies "发" (rule 5).
    and ask them to click "Publish release". Then watch the Release workflow run.
 3. `.github/workflows/release.yml` checks the tag against the version, runs the tests,
    builds, and uploads to PyPI through Trusted Publishing (environment `pypi`).
-4. Set the version to the next `.dev0` (for example `0.3.0.dev0`) afterwards.
+4. Set the version to the next `.dev0` (for example `0.4.0.dev0`) afterwards.
 
 PyPI side (one-time, done by the maintainer in their PyPI account): a trusted publisher
 for project `ofdkit`, owner `Edgar-311`, repository `ofdkit`, workflow `release.yml`,
@@ -119,6 +119,7 @@ environment `pypi`.
 - [x] `ofdkit rename` (`rename.py`): preview by default, `--apply`, `--undo` from the log;
       never overwrites. It is the only command that changes the user's files; keep it
       that way, and keep its preview-first default
+- [x] `--buyer` check, `ofdkit rename`, `py.typed`; 0.3.0 released to PyPI on 2026-10-28
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
