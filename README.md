@@ -145,6 +145,9 @@ Amounts are decimal strings, so no precision is lost. `warnings` notes totals th
 让 Claude、Codex、Cursor 等 AI 工具直接读取 OFD 文件。需要先安装 [uv](https://docs.astral.sh/uv/)。所有工具都是只读的。
 Lets Claude, Codex, Cursor and other AI tools read OFD files. Requires [uv](https://docs.astral.sh/uv/). All tools are read-only.
 
+已在[官方 MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Edgar-311/ofdkit) 上架，名字是 `io.github.Edgar-311/ofdkit`；支持这个目录的工具可以直接搜索安装。
+Listed in the [official MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.Edgar-311/ofdkit) as `io.github.Edgar-311/ofdkit`; tools that read the registry can install it from there.
+
 | 工具 / Tool | 作用 / What it does |
 | --- | --- |
 | `read_ofd_text` | 按阅读顺序提取文字，可选 Markdown 和页码范围 / text in reading order, optional Markdown and page range |

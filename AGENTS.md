@@ -123,6 +123,8 @@ environment `pypi`.
       never overwrites. It is the only command that changes the user's files; keep it
       that way, and keep its preview-first default
 - [x] `--buyer` check, `ofdkit rename`, `py.typed`; 0.3.0 released to PyPI on 2026-10-28
+- [x] Listed in the official MCP Registry as `io.github.Edgar-311/ofdkit` since 0.3.1
+      (2026-10-28); every release updates the listing
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction
