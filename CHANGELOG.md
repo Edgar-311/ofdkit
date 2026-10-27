@@ -5,7 +5,7 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-10-26
+## [0.2.0] - 2026-10-27
 
 ### Added
 
