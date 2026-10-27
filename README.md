@@ -78,8 +78,8 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
    ofdkit 发票文件夹 --buyer 某某有限公司 --buyer 91310000XXXXXXXXXX
    ```
 
-6. 按发票内容给文件改名，例如 `dzfp_2411…_20240528.ofd` 改成 `2024-05-28_某某公司_4449.00_2411….ofd`。不加 `--apply` 只是预览；同名的 PDF、XML 会一起改；改名记录可以用 `--undo` 改回去：
-   Rename invoice files after their contents. Without `--apply` it only previews; PDF and XML copies with the same name are renamed too; `--undo` restores the old names from the log:
+6. 按发票内容给文件改名，例如 `dzfp_2411…_20240528.ofd` 改成 `2024-05-28_某某公司_4449.00_2411….ofd`。不加 `--apply` 只是预览；同名的 PDF、XML 会一起改（其中一个改不了，这张发票的文件都保持原名）；改名前会先写好改名记录，写不了就一个文件也不改；用 `--undo` 可以按记录改回去，运行几次都没关系：
+   Rename invoice files after their contents. Without `--apply` it only previews; PDF and XML copies with the same name are renamed too (if one cannot be, that invoice's files all keep their names); the log is written before anything is renamed, and nothing is renamed if it cannot be; `--undo` restores the old names from the log and is safe to run again:
 
    ```bash
    ofdkit rename 发票文件夹            # 预览 / preview

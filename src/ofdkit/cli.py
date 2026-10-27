@@ -291,7 +291,7 @@ def _batch(args: argparse.Namespace) -> int:
 
 
 def _rename(args: argparse.Namespace) -> int:
-    from .rename import apply, plan, undo
+    from .rename import LogError, apply, plan, undo
 
     if args.undo:
         if args.paths:
@@ -305,6 +305,8 @@ def _rename(args: argparse.Namespace) -> int:
         for old, new in outcome.done:
             print(f"{old.name}\n  → {new.name}")
         print(f"\n已改回 {len(outcome.done)} 个文件。")
+        if outcome.unchanged:
+            print(f"另有 {len(outcome.unchanged)} 个文件本来就是原来的名字，不用改。")
         for old, new, reason in outcome.failed:
             _say(f"没能把 {old} 改回 {new.name}：{reason}")
         return EXIT_ERROR if outcome.failed else EXIT_OK
@@ -352,10 +354,16 @@ def _rename(args: argparse.Namespace) -> int:
         print(f"确认没问题的话，加上 --apply 再运行一次：\n{command}")
         return EXIT_OK
 
-    outcome = apply(planned)
+    try:
+        outcome = apply(planned)
+    except LogError as exc:
+        _say(f"错误：{exc}。为了能改回去，必须先写好改名记录，所以这次没有改任何文件。")
+        return EXIT_ERROR
     print(f"\n已改名 {len(outcome.done)} 个文件。")
     for old, new, reason in outcome.failed:
         _say(f"没能把 {old} 改成 {new.name}：{reason}")
+    for old, new in outcome.rolled_back:
+        _say(f"同一张发票的另一个文件没改成功，所以 {old.name} 保留了原来的名字")
     if outcome.log is not None:
         print(f"改名记录保存在 {outcome.log}\n要改回原来的名字，运行：ofdkit rename --undo {_quote(str(outcome.log))}")
     return EXIT_ERROR if outcome.failed else EXIT_OK

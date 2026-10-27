@@ -7,6 +7,13 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ### Fixed
 
+- `ofdkit rename --apply` renamed files first and wrote the log for `--undo` last, so
+  a log that could not be written left renamed files and no way back. Now the log is
+  created before anything is renamed (if it cannot be, nothing is renamed), each
+  rename is written to it and flushed to disk before it happens, and renaming stops if
+  a line cannot be written. An OFD file and its PDF or XML copies are renamed together:
+  if one fails, the others go back to their old names. `--undo` can be run more than
+  once and skips files that already have their old names.
 - Amounts that are not numbers were summed as 0 without a word: an invoice whose
   价税合计 read "无法识别" gave `total_amount_sum` "0" with no warning. Now such a value
   is kept as found and noted in the invoice's `warnings`; sums add only plain decimal

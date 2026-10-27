@@ -121,7 +121,8 @@ environment `pypi`.
       with `--buyer`, invoices for another buyer
 - [x] `ofdkit rename` (`rename.py`): preview by default, `--apply`, `--undo` from the log;
       never overwrites. It is the only command that changes the user's files; keep it
-      that way, and keep its preview-first default
+      that way, keep its preview-first default, and keep the log written (and synced)
+      before each rename
 - [x] `--buyer` check, `ofdkit rename`, `py.typed`; 0.3.0 released to PyPI on 2026-10-28
 - [x] Listed in the official MCP Registry as `io.github.Edgar-311/ofdkit` since 0.3.1
       (2026-10-28); every release updates the listing
