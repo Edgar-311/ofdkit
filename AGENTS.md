@@ -30,11 +30,10 @@ set of synthetic OFD test files with expected outputs.
 2. No real invoices or personal data in this repository: not in tests, fixtures, issues
    or docs. If a user shares a real file to report a bug, reproduce the structure with a
    synthetic file and do not commit theirs.
-3. Be honest about AI involvement. The README says the code is AI-assisted. Commits name
-   the maintainer as author because they direct and own the work, and every commit made
-   by an agent keeps the `Co-Authored-By` trailer naming the agent. Never remove that
-   trailer, and never claim anywhere (README, posts, applications) that the maintainer
-   wrote the code by hand.
+3. Be honest about AI involvement. The README says the code is AI-assisted; keep that
+   note, and never claim anywhere (README, posts, applications) that the maintainer wrote
+   the code by hand. Commits name only the maintainer, who directs and owns the work
+   (see Commits).
 4. No growth hacking: no star exchanges, no unsolicited promotion in other projects, no
    bulk low-value pull requests to other repositories.
 5. Releases to PyPI happen only after the maintainer explicitly approves (they reply "发").
@@ -78,12 +77,16 @@ anything public or irreversible; otherwise make sensible decisions and report th
 
 ## Commits
 
-- Author: `Edgar-311 <347874636+Edgar-311@users.noreply.github.com>`, GitHub's no-reply
-  address for the maintainer. Never use a personal email address. The committer is the
-  agent. In a fresh clone, set this once:
-  `git config author.name Edgar-311`
-  `git config author.email 347874636+Edgar-311@users.noreply.github.com`
-- End every commit message with the agent's `Co-Authored-By` trailer.
+- Author and committer: only the maintainer, `Edgar-311
+  <347874636+Edgar-311@users.noreply.github.com>`, GitHub's no-reply address. No
+  `Co-Authored-By` trailer for agents: the maintainer decided on 2026-10-28 that commits
+  name only them (the README keeps the AI-assisted note). Never use a personal email
+  address. In a fresh clone, set this once:
+  `git config user.name Edgar-311`
+  `git config user.email 347874636+Edgar-311@users.noreply.github.com`
+- Land pull requests by pushing the reviewed commits to main yourself (a fast-forward),
+  not with GitHub's merge or squash button or API: GitHub writes those commits with the
+  account's primary email address, which may be personal.
 - Never rewrite or force-push published history.
 
 ## Releasing

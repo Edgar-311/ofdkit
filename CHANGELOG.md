@@ -5,6 +5,8 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
 ### Fixed
 
 - `ofdkit rename --apply` renamed files first and wrote the log for `--undo` last, so
@@ -123,7 +125,8 @@ First release.
 - MarkItDown plugin (`pip install "ofdkit[markitdown]"`).
 - The `ofd-reader` Agent Skill.
 
-[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Edgar-311/ofdkit/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Edgar-311/ofdkit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Edgar-311/ofdkit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Edgar-311/ofdkit/compare/v0.1.0...v0.2.0
