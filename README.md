@@ -4,8 +4,8 @@
 
 A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese fixed-layout format used for e-invoices and official documents): extract text and invoice fields, and use them from AI tools.
 
-> 状态：0.2 版，接口以后可能还会调整。更新记录见 [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md)。
-> Status: 0.2, the API may still change. See the [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md).
+> 状态：0.3 版，接口以后可能还会调整。更新记录见 [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md)。
+> Status: 0.3, the API may still change. See the [CHANGELOG](https://github.com/Edgar-311/ofdkit/blob/main/CHANGELOG.md).
 
 ## 能做什么 / What it does
 
