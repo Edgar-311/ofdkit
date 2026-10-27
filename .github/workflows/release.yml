@@ -1,7 +1,8 @@
 name: Release
 
-# Publishing a GitHub release tagged vX.Y.Z builds the package and uploads it to PyPI.
-# PyPI trusts this workflow through Trusted Publishing, so no token is stored anywhere.
+# Publishing a GitHub release tagged vX.Y.Z builds the package, uploads it to PyPI and
+# lists the new version in the official MCP Registry. PyPI and the registry both trust
+# this workflow through OpenID Connect, so no token is stored anywhere.
 on:
   release:
     types: [published]
@@ -53,3 +54,57 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # The official MCP Registry (registry.modelcontextprotocol.io) lists server.json under
+  # io.github.Edgar-311/ofdkit. It checks that the PyPI release's README contains the
+  # line "mcp-name: io.github.Edgar-311/ofdkit", so this runs after the PyPI upload.
+  mcp-registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.6
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set the version in server.json
+        run: |
+          version="${TAG#v}"
+          jq --arg v "$version" '.version = $v | .packages[0].version = $v' server.json > server.tmp
+          mv server.tmp server.json
+          cat server.json
+      - name: Wait until PyPI serves the new version
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null "https://pypi.org/pypi/ofdkit/${TAG#v}/json"; then exit 0; fi
+            sleep 10
+          done
+          echo "PyPI does not show ofdkit ${TAG#v} yet" >&2
+          exit 1
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Download and verify mcp-publisher
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+      - name: Log in to the MCP Registry
+        run: ./mcp-publisher login github-oidc
+      - name: Publish server.json
+        run: |
+          for attempt in 1 2 3; do
+            if ./mcp-publisher publish; then exit 0; fi
+            sleep 30
+          done
+          exit 1

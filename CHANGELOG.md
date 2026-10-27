@@ -5,6 +5,14 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-28
+
+### Added
+
+- Listed in the official MCP Registry as `io.github.Edgar-311/ofdkit`, so MCP clients
+  and directories that read the registry can find and install the server. `server.json`
+  describes it, and the release workflow publishes every new version there.
+
 ## [0.3.0] - 2026-10-28
 
 ### Added
@@ -84,7 +92,8 @@ First release.
 - MarkItDown plugin (`pip install "ofdkit[markitdown]"`).
 - The `ofd-reader` Agent Skill.
 
-[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Edgar-311/ofdkit/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Edgar-311/ofdkit/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Edgar-311/ofdkit/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Edgar-311/ofdkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Edgar-311/ofdkit/releases/tag/v0.1.0

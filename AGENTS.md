@@ -97,7 +97,10 @@ Only after the maintainer replies "发" (rule 5).
    `https://github.com/Edgar-311/ofdkit/releases/new?tag=vX.Y.Z&target=main&title=vX.Y.Z&body=<url-encoded notes>`,
    and ask them to click "Publish release". Then watch the Release workflow run.
 3. `.github/workflows/release.yml` checks the tag against the version, runs the tests,
-   builds, and uploads to PyPI through Trusted Publishing (environment `pypi`).
+   builds, and uploads to PyPI through Trusted Publishing (environment `pypi`). Its last
+   job lists the version in the official MCP Registry (`server.json`, name
+   `io.github.Edgar-311/ofdkit`, GitHub OIDC login, no secrets). The registry checks for
+   the `mcp-name:` line at the top of README.md; never remove it.
 4. Set the version to the next `.dev0` (for example `0.4.0.dev0`) afterwards.
 
 PyPI side (one-time, done by the maintainer in their PyPI account): a trusted publisher
