@@ -13,6 +13,8 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
   Show an invoice: number, date, buyer, seller, amounts and line items, with one command.
 - 把一个文件夹里的发票汇总到 Excel，也能直接读税务平台批量下载的 .zip 压缩包。发票号码保持原样（不会变成 2.4E+19），金额可以直接求和，重复的发票会标出来。
   Summarise a folder of invoices, or a .zip archive downloaded from the tax service, into an Excel workbook: invoice numbers stay intact, amounts are numbers, duplicates are flagged.
+- 报销帮手：检查发票抬头（购买方名称、税号）对不对；按发票内容给文件改名，可以预览、可以改回去。
+  For reimbursement: check that invoices are made out to the right buyer, and rename invoice files after their contents, with a preview and an undo.
 - 按阅读顺序提取文字，包括模板和复合对象里的文字。
   Text in reading order, including text in templates and composite objects.
 - 给程序和 AI 用：发票字段输出 JSON，提供 MCP 服务器、Agent Skill 和 MarkItDown 插件。
@@ -67,6 +69,25 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
    Excel 文件有两张表："发票"每张发票一行，最后是合计；"明细"每个商品或服务一行。重复的发票标黄，读不出来的文件标红并写明原因。合计用的是 SUBTOTAL，筛选以后只算看得见的行。
    The workbook has two sheets: 发票 (one row per invoice, with totals; duplicates in yellow, unreadable files in red with the reason) and 明细 (one row per line item). Totals use SUBTOTAL, so they follow filters.
 
+5. 检查发票抬头：加上 `--buyer`，购买方名称或税号不是你公司的发票会标出来（Excel 里标橙色）。名称和税号都要查，就写两次：
+   Check who the invoices are made out to: with `--buyer`, invoices for another buyer name or tax ID are flagged (orange in Excel). Repeat it to check both:
+
+   ```bash
+   ofdkit 发票文件夹 --buyer 某某有限公司 --buyer 91310000XXXXXXXXXX
+   ```
+
+6. 按发票内容给文件改名，例如 `dzfp_2411…_20240528.ofd` 改成 `2024-05-28_某某公司_4449.00_2411….ofd`。不加 `--apply` 只是预览；同名的 PDF、XML 会一起改；改名记录可以用 `--undo` 改回去：
+   Rename invoice files after their contents. Without `--apply` it only previews; PDF and XML copies with the same name are renamed too; `--undo` restores the old names from the log:
+
+   ```bash
+   ofdkit rename 发票文件夹            # 预览 / preview
+   ofdkit rename 发票文件夹 --apply    # 改名 / rename
+   ofdkit rename --undo 发票文件夹/改名记录_20261028_093000.csv
+   ```
+
+   名字的格式可以改，例如 `--pattern "{开票日期}_{购买方}_{商品}"`。可以用的字段：开票日期、发票号码、发票代码、发票种类、销售方、销售方税号、购买方、购买方税号、金额、税额、价税合计、商品、原文件名。
+   The name format can be changed with `--pattern`; fields are listed by `ofdkit rename --help` (English names such as `{date}`, `{seller}` and `{total}` work too).
+
 ## 命令行 / Command line
 
 ```bash
@@ -74,14 +95,16 @@ ofdkit 文件.ofd                              # 看发票，不是发票就显�
 ofdkit 文件夹或压缩包.zip                     # 发票列表和合计 / list invoices with totals
 ofdkit batch 文件夹 -o 发票汇总.xlsx          # 导出 Excel / export to Excel
 ofdkit batch 文件夹 -o 发票汇总.csv           # 导出 CSV（给程序用）/ export CSV for programs
+ofdkit 文件夹 --buyer 公司名或税号             # 检查发票抬头 / check the buyer
+ofdkit rename 文件夹                         # 按内容改名（先预览）/ rename after contents (preview first)
 ofdkit text 文件.ofd                         # 提取文字 / print text
 ofdkit invoice 发票.ofd                      # 发票字段（JSON）/ invoice fields as JSON
 ofdkit info 文件.ofd                         # 页数、作者等信息 / pages and metadata
 ofdkit describe 文件.ofd -o 结构.json         # 打码的结构，用于报告问题 / masked structure for bug reports
 ```
 
-`batch` 和 `show` 加 `-r` 会连子文件夹一起找。`ofdkit 文件.ofd` 是 `ofdkit show 文件.ofd` 的简写。
-Add `-r` to `batch` and `show` to include subfolders. `ofdkit PATH` is short for `ofdkit show PATH`.
+`show`、`batch` 和 `rename` 加 `-r` 会连子文件夹一起找。`ofdkit 文件.ofd` 是 `ofdkit show 文件.ofd` 的简写。
+Add `-r` to `show`, `batch` and `rename` to include subfolders. `ofdkit PATH` is short for `ofdkit show PATH`.
 
 `ofdkit invoice` 的输出示例（数据是虚构的）/ Example output (fictional data):
 
@@ -125,7 +148,7 @@ Lets Claude, Codex, Cursor and other AI tools read OFD files. Requires [uv](http
 | `read_ofd_text` | 按阅读顺序提取文字，可选 Markdown 和页码范围 / text in reading order, optional Markdown and page range |
 | `read_ofd_invoice` | 发票字段 / invoice fields |
 | `ofd_info` | 页数、尺寸、元数据 / pages, sizes, metadata |
-| `list_ofd_invoices` | 汇总一个文件夹里的发票 / summarise a folder of invoices |
+| `list_ofd_invoices` | 汇总一个文件夹里的发票，可以检查抬头 / summarise a folder of invoices, optionally checking the buyer |
 
 Claude Code:
 
@@ -187,9 +210,9 @@ with ofdkit.open("发票.ofd") as doc:
         print(invoice.invoice_number, invoice.total_amount)
 
 # 文件夹、.zip 压缩包或多个文件 / folders, ZIP archives or several files
-for result in ofdkit.read_invoices("发票文件夹", recursive=True):
+for result in ofdkit.read_invoices("发票文件夹", recursive=True, buyer=["某某有限公司"]):
     if result.invoice:
-        print(result.file, result.invoice.total_amount, "重复" if result.duplicate else "")
+        print(result.file, result.invoice.total_amount, "重复" if result.duplicate else "", result.buyer_mismatch)
     else:
         print(result.file, result.error)
 ```

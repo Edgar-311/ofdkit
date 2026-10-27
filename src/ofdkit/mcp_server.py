@@ -14,7 +14,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
 from . import __version__
-from .batch import find_ofd_files, invoice_row, read_invoice_files, summary
+from .batch import check_buyer, find_ofd_files, invoice_row, read_invoice_files, summary
 from .cli import file_info
 from .document import OFDDocument
 from .errors import OFDError
@@ -105,7 +105,7 @@ def create_server(root: str | Path | None = None) -> MCPServer:
             return file_info(document, path)
 
     @server.tool(title="List OFD invoices in a folder", annotations=_READ_ONLY)
-    def list_ofd_invoices(folder: str, recursive: bool = False) -> dict[str, Any]:
+    def list_ofd_invoices(folder: str, recursive: bool = False, buyer: list[str] | None = None) -> dict[str, Any]:
         """Summarise every invoice in a folder of .ofd files, including ZIP archives of them.
 
         Returns one row per file (number, date, buyer, seller, amounts, item names, or the
@@ -115,6 +115,9 @@ def create_server(root: str | Path | None = None) -> MCPServer:
         Args:
             folder: Absolute path to a folder.
             recursive: Also look in subfolders.
+            buyer: The company the invoices should be made out to (发票抬头): its name, its
+                tax ID, or both. Invoices for another buyer get a "buyer is not" warning
+                and are counted in summary.buyer_mismatches.
         """
         directory = check(folder)
         if not directory.is_dir():
@@ -123,6 +126,7 @@ def create_server(root: str | Path | None = None) -> MCPServer:
         results = read_invoice_files(files, limit=MAX_BATCH_FILES + 1)
         truncated = len(results) > MAX_BATCH_FILES
         results = results[:MAX_BATCH_FILES]
+        check_buyer(results, buyer or [])
         return {"summary": summary(results), "truncated": truncated, "rows": [invoice_row(r) for r in results]}
 
     return server

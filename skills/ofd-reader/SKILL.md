@@ -1,6 +1,6 @@
 ---
 name: ofd-reader
-description: Read OFD files (GB/T 33190), the Chinese fixed-layout format used for e-invoices (电子发票, 数电票, 增值税电子发票) and official documents (公文). Use when the user mentions a .ofd file, asks to read, summarise or translate one, wants invoice fields (发票号码, 金额, 税额, 价税合计, 购买方, 销售方), or wants a folder of invoices totalled or exported to Excel/CSV (发票汇总, 报销).
+description: Read OFD files (GB/T 33190), the Chinese fixed-layout format used for e-invoices (电子发票, 数电票, 增值税电子发票) and official documents (公文). Use when the user mentions a .ofd file, asks to read, summarise or translate one, wants invoice fields (发票号码, 金额, 税额, 价税合计, 购买方, 销售方), wants a folder of invoices totalled or exported to Excel/CSV (发票汇总, 报销), wants invoice files renamed after their contents (发票重命名), or wants to check the buyer on invoices (发票抬头).
 license: Apache-2.0
 compatibility: Needs Python 3.10+ with uv (uvx) or pip, and network access to install ofdkit the first time.
 ---
@@ -33,6 +33,8 @@ and either uv or pip.
 | A spreadsheet of all invoices in a folder or .zip archive, for the user | `uvx ofdkit batch FOLDER -o 发票汇总.xlsx` (add `-r` for subfolders) |
 | The same as data for you to process | `uvx ofdkit batch FOLDER` (CSV on stdout, totals on stderr) |
 | A quick look at an invoice or a folder, in Chinese | `uvx ofdkit show PATH` |
+| Check that invoices are made out to their company (发票抬头) | add `--buyer NAME --buyer TAX_ID` to `show` or `batch` |
+| Rename invoice files after their contents | `uvx ofdkit rename FOLDER` (preview), then `--apply` |
 | Page count, size, author, whether it is an invoice | `uvx ofdkit info FILE.ofd --json` |
 
 Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command only; try
@@ -51,6 +53,9 @@ Exit codes: `0` success, `1` the file holds no invoice data (`invoice` command o
   numbers in a CSV into numbers like 2.4E+19. The workbook keeps them as text, has
   totals, flags duplicates, and lists line items on a second sheet. Rows that are not
   invoices have the reason in the `error` column (CSV) or 提醒 (Excel).
+- `rename` changes the user's files. Run it without `--apply` first, show the user the
+  preview, and add `--apply` only after they agree. It prints the `--undo` command for
+  going back; tell the user about it.
 - `batch` and `show` read .zip archives as folders, so an archive downloaded from the
   tax service does not need unzipping first.
 - ofdkit reports what a file contains. It does not verify that an invoice is genuine;

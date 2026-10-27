@@ -5,6 +5,19 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Added
+
+- `ofdkit rename`: renames invoice files after their contents, by default as
+  `{开票日期}_{销售方}_{价税合计}_{发票号码}.ofd`. It only previews until `--apply` is
+  given, renames PDF and XML copies with the same name along with the OFD file, never
+  overwrites a file (a clashing name gets ` (2)`), leaves files that already have their
+  new name alone, and writes a log that `ofdkit rename --undo LOG` uses to restore the
+  old names. `--pattern` sets the format from 13 fields, in Chinese or English.
+- `--buyer NAME_OR_TAX_ID` for `show` and `batch`: flags invoices made out to another
+  buyer (发票抬头), in the summary, the CSV `warnings` and in orange in Excel. The MCP
+  tool `list_ofd_invoices` and `ofdkit.read_invoices()` take `buyer` too.
+- `py.typed`, so type checkers use ofdkit's annotations.
+
 ## [0.2.0] - 2026-10-27
 
 ### Added

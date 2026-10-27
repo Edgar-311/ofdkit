@@ -112,6 +112,10 @@ class InProcessTest(_Files):
         # The server resolves the folder, which on Windows can expand a short temp path.
         inside = str(Path("下载.zip") / "a.ofd")
         self.assertTrue(any(row["file"].endswith(inside) for row in listing["rows"]), listing["rows"])
+        listing = self.call("list_ofd_invoices", {"folder": str(self.root), "buyer": ["测试单位甲"]}).structured_content
+        self.assertEqual(listing["summary"]["buyer_mismatches"], 0)
+        listing = self.call("list_ofd_invoices", {"folder": str(self.root), "buyer": ["测试单位乙"]}).structured_content
+        self.assertEqual(listing["summary"]["buyer_mismatches"], 3)
         with mock.patch.object(mcp_server, "MAX_BATCH_FILES", 2):
             listing = self.call("list_ofd_invoices", {"folder": str(self.root)}).structured_content
         self.assertTrue(listing["truncated"])

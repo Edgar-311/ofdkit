@@ -27,8 +27,9 @@ from .invoice import Invoice, LineItem
 #: Kinds of cell. ``text`` keeps digits as typed; ``money`` and ``number`` are numeric.
 TEXT, INTEGER, MONEY, NUMBER, DATE = "text", "integer", "money", "number", "date"
 
-# Row colours: header, a duplicate invoice, a file without invoice data, an unreadable file.
-_FILLS = {"header": "DDEBF7", "duplicate": "FFF2CC", "not_invoice": "F2F2F2", "error": "FCE4E4"}
+# Row colours: header, a duplicate invoice, a file without invoice data, an unreadable file,
+# an invoice for another buyer.
+_FILLS = {"header": "DDEBF7", "duplicate": "FFF2CC", "not_invoice": "F2F2F2", "error": "FCE4E4", "mismatch": "FCE4D6"}
 _NUMBER_FORMATS = {TEXT: 49, INTEGER: 1, MONEY: 4, NUMBER: 0, DATE: 164}  # 164 is yyyy-mm-dd, below
 _MAX_CELL_TEXT = 32_767  # Excel's limit
 _ILLEGAL_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
@@ -97,6 +98,8 @@ def _invoice_sheet(results: Sequence[InvoiceFile]) -> _Sheet:
         cells += [_Cell("；".join(problems(result))), _Cell(result.file)]
         if invoice is None:
             fill = "not_invoice" if problems(result)[0].startswith("不是发票") else "error"
+        elif result.buyer_mismatch:
+            fill = "mismatch"
         else:
             fill = "duplicate" if result.duplicate else None
         rows.append((cells, fill))

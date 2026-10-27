@@ -16,6 +16,8 @@ from .batch import (
     COLUMNS,
     NO_INVOICE,
     InvoiceFile,
+    buyer_mismatch,
+    check_buyer,
     find_ofd_files,
     invoice_row,
     problems,
@@ -25,6 +27,7 @@ from .batch import (
 from .document import OFDDocument
 from .errors import OFDError
 from .markdown import document_markdown
+from .rename import DEFAULT_PATTERN, FIELDS
 from .report import display_width, invoice_report, pad, summary_text, table_report
 
 EXIT_OK = 0
@@ -34,13 +37,15 @@ EXIT_ERROR = 2
 # Kept for backward compatibility with code that imported it from here.
 CSV_COLUMNS = COLUMNS
 
-COMMANDS = ("show", "info", "text", "invoice", "batch", "describe", "mcp")
+COMMANDS = ("show", "info", "text", "invoice", "batch", "rename", "describe", "mcp")
 
 EXAMPLES = """\
 例子 / examples:
   ofdkit 发票.ofd                           看一张发票，或者一个文件的文字
   ofdkit 发票文件夹                         列出文件夹（或 .zip 压缩包）里的发票和合计
   ofdkit batch 发票文件夹 -o 发票汇总.xlsx   导出到 Excel
+  ofdkit 发票文件夹 --buyer 公司名或税号      检查发票抬头对不对
+  ofdkit rename 发票文件夹                  按发票内容给文件改名（先预览）
   ofdkit text 文件.ofd                      提取文字
   ofdkit invoice 发票.ofd                   发票字段（JSON，给程序用）
 """
@@ -63,6 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     show.add_argument("paths", nargs="+", metavar="路径", help="OFD 文件、文件夹或 .zip 压缩包")
     show.add_argument("-r", "--recursive", action="store_true", help="也看子文件夹")
+    _add_buyer_option(show)
 
     info = commands.add_parser("info", help="页数、作者等信息，以及是不是发票")
     info.add_argument("file", metavar="文件", help="OFD 文件")
@@ -86,6 +92,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="保存到这个文件：.xlsx 是 Excel 表格（推荐），其他是 CSV（UTF-8，带 BOM）。不写就把 CSV 显示在屏幕上",
     )
     batch.add_argument("-r", "--recursive", action="store_true", help="也看子文件夹")
+    _add_buyer_option(batch)
+
+    rename = commands.add_parser("rename", help="按发票内容给文件改名：先预览，加 --apply 才真的改")
+    rename.add_argument("paths", nargs="*", metavar="路径", help="OFD 文件或文件夹")
+    rename.add_argument("-r", "--recursive", action="store_true", help="也改子文件夹里的文件")
+    rename.add_argument(
+        "--pattern",
+        default=DEFAULT_PATTERN,
+        metavar="格式",
+        help=f"新名字的格式，默认 {DEFAULT_PATTERN}。可以用的字段：{'、'.join(FIELDS)}",
+    )
+    rename.add_argument("--apply", action="store_true", help="真的改名（不加就只预览）")
+    rename.add_argument("--only-ofd", action="store_true", help="只改 .ofd 文件；不加的话，同名的 PDF、XML 等也一起改")
+    rename.add_argument("--undo", metavar="改名记录", help="按改名记录把文件名改回去")
 
     describe = commands.add_parser("describe", help="导出文件结构（文字全部打码），用于报告问题")
     describe.add_argument("file", metavar="文件", help="OFD 文件")
@@ -112,6 +132,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "text": _text,
         "invoice": _invoice,
         "batch": _batch,
+        "rename": _rename,
         "describe": _describe,
         "mcp": _mcp,
     }
@@ -146,7 +167,8 @@ def _show(args: argparse.Namespace) -> int:
             invoice = document.invoice()
             text = None if invoice else document.text()
         if invoice is not None:
-            print(invoice_report(invoice, problems(InvoiceFile(str(paths[0]), invoice=invoice))))
+            result = InvoiceFile(str(paths[0]), invoice=invoice, buyer_mismatch=buyer_mismatch(invoice, args.buyer))
+            print(invoice_report(invoice, problems(result)))
         elif text and text.strip():
             print(text)
         else:
@@ -161,13 +183,14 @@ def _show(args: argparse.Namespace) -> int:
             _say("没有找到 .ofd 文件。" + ("" if args.recursive else "要连子文件夹一起找，请加 -r。"))
         return EXIT_ERROR
     results = read_invoice_files(files)
+    check_buyer(results, args.buyer)
     print(table_report(results))
     print()
     print(summary_text(summary(results)))
     if any(result.invoice for result in results):
-        quoted = " ".join(f'"{path}"' if " " in path else path for path in args.paths)
-        flag = " -r" if args.recursive else ""
-        print(f"\n导出到 Excel：ofdkit batch {quoted}{flag} -o 发票汇总.xlsx")
+        quoted = " ".join(_quote(path) for path in args.paths)
+        flags = (" -r" if args.recursive else "") + "".join(f" --buyer {_quote(value)}" for value in args.buyer)
+        print(f"\n导出到 Excel：ofdkit batch {quoted}{flags} -o 发票汇总.xlsx")
     return EXIT_OK
 
 
@@ -246,6 +269,7 @@ def _batch(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
     results = read_invoice_files(files)
+    check_buyer(results, args.buyer)
     output = Path(args.output) if args.output else None
     if output is not None and output.suffix.lower() == ".xlsx":
         from .xlsx import write_invoices_xlsx
@@ -264,6 +288,77 @@ def _batch(args: argparse.Namespace) -> int:
     if output is not None:
         _say(f"已保存到 {output}")
     return EXIT_OK
+
+
+def _rename(args: argparse.Namespace) -> int:
+    from .rename import apply, plan, undo
+
+    if args.undo:
+        if args.paths:
+            _say("错误：用 --undo 的时候，不要再写文件或文件夹")
+            return EXIT_ERROR
+        try:
+            outcome = undo(args.undo)
+        except ValueError as exc:
+            _say(f"错误：{exc}")
+            return EXIT_ERROR
+        for old, new in outcome.done:
+            print(f"{old.name}\n  → {new.name}")
+        print(f"\n已改回 {len(outcome.done)} 个文件。")
+        for old, new, reason in outcome.failed:
+            _say(f"没能把 {old} 改回 {new.name}：{reason}")
+        return EXIT_ERROR if outcome.failed else EXIT_OK
+
+    if not args.paths:
+        _say("错误：请写上要改名的文件或文件夹，例如 ofdkit rename 发票文件夹")
+        return EXIT_ERROR
+    try:
+        renames = plan(args.paths, args.pattern, args.recursive, companions=not args.only_ofd)
+    except ValueError as exc:
+        _say(f"错误：{exc}")
+        return EXIT_ERROR
+
+    planned = [rename for rename in renames if rename.target is not None]
+    skipped = [rename for rename in renames if rename.target is None]
+    if planned and not args.apply:
+        print("预览（还没有改名）：\n")
+    for rename in planned:
+        assert rename.target is not None
+        print(f"{rename.source}\n  → {rename.target.name}" + ("（和别的文件是同一张发票）" if rename.duplicate else ""))
+        for old, new in rename.companions:
+            print(f"  同名的 {old.name} 也改成 {new.name}")
+    if skipped:
+        print("\n不改名的文件：")
+        for rename in skipped:
+            print(f"  {rename.source}：{rename.skipped}")
+    if not planned:
+        print("\n没有需要改名的文件。")
+        return EXIT_OK
+
+    companions = sum(len(rename.companions) for rename in planned)
+    extra = f"（另外还有 {companions} 个同名的 PDF、XML 等文件）" if companions else ""
+    if not args.apply:
+        command = " ".join(
+            [
+                "ofdkit rename",
+                *(_quote(path) for path in args.paths),
+                *(["-r"] if args.recursive else []),
+                *(["--pattern", _quote(args.pattern)] if args.pattern != DEFAULT_PATTERN else []),
+                *(["--only-ofd"] if args.only_ofd else []),
+                "--apply",
+            ]
+        )
+        print(f"\n共 {len(planned)} 个发票文件会改名{extra}。以上只是预览，还没有改。")
+        print(f"确认没问题的话，加上 --apply 再运行一次：\n{command}")
+        return EXIT_OK
+
+    outcome = apply(planned)
+    print(f"\n已改名 {len(outcome.done)} 个文件。")
+    for old, new, reason in outcome.failed:
+        _say(f"没能把 {old} 改成 {new.name}：{reason}")
+    if outcome.log is not None:
+        print(f"改名记录保存在 {outcome.log}\n要改回原来的名字，运行：ofdkit rename --undo {_quote(str(outcome.log))}")
+    return EXIT_ERROR if outcome.failed else EXIT_OK
 
 
 def _describe(args: argparse.Namespace) -> int:
@@ -286,6 +381,20 @@ def _mcp(args: argparse.Namespace) -> int:
         return EXIT_ERROR
     create_server(root=args.root).run("stdio")
     return EXIT_OK
+
+
+def _add_buyer_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--buyer",
+        action="append",
+        default=[],
+        metavar="公司名或税号",
+        help="检查发票抬头：购买方不是这个公司（或税号）的发票会标出来。名称和税号都要查的话，写两次 --buyer",
+    )
+
+
+def _quote(text: str) -> str:
+    return f'"{text}"' if any(char in text for char in " &()") else text
 
 
 def _write_csv(stream: Any, rows: list[dict[str, Any]]) -> None:

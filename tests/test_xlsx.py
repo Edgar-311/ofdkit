@@ -95,6 +95,19 @@ class WorkbookXmlTest(unittest.TestCase):
         styles = {row: cells[f"O{row}"][3] for row in (2, 4, 5)}
         self.assertEqual(len(set(styles.values())), 3, "duplicate, not an invoice and unreadable differ")
 
+    def test_other_buyer_is_coloured_and_explained(self):
+        results = [
+            InvoiceFile("a.ofd", invoice=Invoice(invoice_number="1"), buyer_mismatch=["测试单位甲"]),
+            InvoiceFile("b.ofd", invoice=Invoice(invoice_number="2")),
+        ]
+        buffer = io.BytesIO()
+        write_invoices_xlsx(results, buffer)
+        archive = zipfile.ZipFile(buffer)
+        sheet = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
+        styles = {c.get("r"): c.get("s") for c in sheet.iterfind(".//m:c", NS)}
+        self.assertNotEqual(styles["O2"], styles["O3"])
+        self.assertIn("购买方不是 测试单位甲", archive.read("xl/sharedStrings.xml").decode("utf-8"))
+
     def test_totals(self):
         root, cells = self.cells(1)
         self.assertEqual(cells["A6"][0], "合计")

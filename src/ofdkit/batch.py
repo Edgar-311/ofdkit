@@ -12,7 +12,7 @@ import zipfile
 import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -43,6 +43,7 @@ COLUMNS = [
 
 NO_INVOICE = "no invoice data"
 DUPLICATE = "duplicate invoice number"
+BUYER_MISMATCH = "buyer is not"
 EMPTY_ARCHIVE = "no .ofd files in this ZIP archive"
 
 #: Largest OFD file, uncompressed, that is read from inside a ZIP archive.
@@ -62,21 +63,28 @@ class InvoiceFile:
     error: str | None = None
     #: Another file has the same invoice number (and invoice code, for older invoices).
     duplicate: bool = False
+    #: Expected buyer names or tax IDs (see :func:`check_buyer`) this invoice does not match.
+    buyer_mismatch: list[str] = field(default_factory=list)
 
 
-def read_invoices(paths: str | Path | Iterable[str | Path], recursive: bool = False) -> list[InvoiceFile]:
+def read_invoices(
+    paths: str | Path | Iterable[str | Path], recursive: bool = False, buyer: Sequence[str] = ()
+) -> list[InvoiceFile]:
     """Read every OFD file in ``paths``: files, folders and ZIP archives of OFD files.
 
     Folders are searched for ``.ofd`` files and for ZIP archives that contain some;
-    ``recursive`` also searches their subfolders. Raises FileNotFoundError if a path
-    does not exist.
+    ``recursive`` also searches their subfolders. With ``buyer`` (company names or tax
+    IDs), invoices made out to someone else are noted, see :func:`check_buyer`. Raises
+    FileNotFoundError if a path does not exist.
     """
     if isinstance(paths, (str, Path)):
         paths = [paths]
     files, missing = find_ofd_files(paths, recursive)
     if missing:
         raise FileNotFoundError(f"{missing[0]} does not exist")
-    return read_invoice_files(files)
+    results = read_invoice_files(files)
+    check_buyer(results, buyer)
+    return results
 
 
 def find_ofd_files(paths: Iterable[str | Path], recursive: bool = False) -> tuple[list[Path], list[str]]:
@@ -136,7 +144,11 @@ def invoice_row(result: InvoiceFile | Path) -> dict[str, Any]:
     row["error"] = result.error or ""
     invoice = result.invoice
     if invoice is not None:
-        warnings = [*invoice.warnings, *([DUPLICATE] if result.duplicate else [])]
+        warnings = [
+            *invoice.warnings,
+            *([DUPLICATE] if result.duplicate else []),
+            *(f"{BUYER_MISMATCH} {expected}" for expected in result.buyer_mismatch),
+        ]
         row.update(
             {
                 "invoice_number": invoice.invoice_number or "",
@@ -169,6 +181,47 @@ def item_names(invoice: Invoice, limit: int | None = None) -> str:
     return "；".join(names)
 
 
+_TAX_ID = re.compile(r"(?=.*\d)[0-9A-Z]{15,20}")
+
+
+def check_buyer(results: Sequence[InvoiceFile], expected: Sequence[str]) -> None:
+    """Note the invoices whose buyer is not ``expected`` in :attr:`InvoiceFile.buyer_mismatch`.
+
+    Each expected value is a company name or a tax ID (统一社会信用代码, 15 to 20 letters
+    and digits). Names are compared without spaces, case or full-width brackets.
+    """
+    for result in results:
+        if result.invoice is not None:
+            result.buyer_mismatch = buyer_mismatch(result.invoice, expected)
+
+
+def buyer_mismatch(invoice: Invoice, expected: Sequence[str]) -> list[str]:
+    """The expected buyer names or tax IDs that ``invoice`` does not match."""
+    missed = []
+    for value in expected:
+        if not value.strip():
+            continue
+        if _is_tax_id(value):
+            matched = _normal_tax_id(invoice.buyer.tax_id or "") == _normal_tax_id(value)
+        else:
+            matched = _normal_name(invoice.buyer.name or "") == _normal_name(value)
+        if not matched:
+            missed.append(value.strip())
+    return missed
+
+
+def _is_tax_id(value: str) -> bool:
+    return bool(_TAX_ID.fullmatch(_normal_tax_id(value)))
+
+
+def _normal_tax_id(value: str) -> str:
+    return re.sub(r"\s+", "", value).upper()
+
+
+def _normal_name(value: str) -> str:
+    return re.sub(r"\s+", "", value).replace("（", "(").replace("）", ")").casefold()
+
+
 _TOTALS_WARNING = re.compile(r"amount_without_tax \+ tax_amount != total_amount \((.*) \+ (.*) != (.*)\)")
 
 
@@ -185,7 +238,13 @@ def problems(result: InvoiceFile) -> list[str]:
     found = []
     if result.duplicate:
         found.append("发票号码重复")
-    for warning in result.invoice.warnings if result.invoice else []:
+    invoice = result.invoice
+    for expected in result.buyer_mismatch:
+        tax_id = _is_tax_id(expected)
+        actual = (invoice.buyer.tax_id if tax_id else invoice.buyer.name) if invoice else None
+        label = "购买方税号" if tax_id else "购买方"
+        found.append(f"{label}不是 {expected}（发票上是 {actual or '空的'}）")
+    for warning in invoice.warnings if invoice else []:
         match = _TOTALS_WARNING.fullmatch(warning)
         found.append(f"金额 + 税额 ≠ 价税合计（{match[1]} + {match[2]} ≠ {match[3]}）" if match else warning)
     return found
@@ -217,6 +276,7 @@ def summary(results: Sequence[InvoiceFile | dict[str, Any]]) -> dict[str, Any]:
         "without_invoice_data": sum(1 for row in rows if row["error"] == NO_INVOICE),
         "errors": sum(1 for row in rows if row["error"] and row["error"] != NO_INVOICE),
         "duplicates": len(invoices) - len(unique),
+        "buyer_mismatches": sum(1 for row in invoices if BUYER_MISMATCH in row["warnings"]),
         "amount_without_tax_sum": total("amount_without_tax", invoices),
         "tax_amount_sum": total("tax_amount", invoices),
         "total_amount_sum": total("total_amount", invoices),

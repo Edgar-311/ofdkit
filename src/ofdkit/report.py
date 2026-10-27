@@ -100,6 +100,8 @@ def summary_text(totals: dict[str, Any]) -> str:
             if Decimal(totals[key])  # left out when no invoice has the field
         ]
         text += f"\n价税合计 {money(totals['total_amount_sum'])} 元" + (f"（{'，'.join(parts)}）" if parts else "") + "。"
+    if totals.get("buyer_mismatches"):
+        text += f"\n有 {totals['buyer_mismatches']} 张发票的购买方不对（抬头或税号和你指定的不一样），请看“提醒”一栏。"
     if totals["duplicates"]:
         text += (
             f"\n有 {totals['duplicates']} 个文件和别的文件是同一张发票（发票号码相同），"

@@ -112,9 +112,13 @@ environment `pypi`.
       `package.py`
 - [x] Text extraction in reading order (`layout.py`)
 - [x] Invoice fields from XML attachments, custom tags and OFD.xml CustomData (`invoice.py`)
-- [x] CLI commands: show (also `ofdkit PATH`), info, text, invoice, batch, describe
-      (`cli.py`, `report.py`); batch writes an Excel workbook (`xlsx.py`) or UTF-8 CSV
-      with a BOM, reads ZIP archives (`batch.py`) and flags duplicate invoices
+- [x] CLI commands: show (also `ofdkit PATH`), info, text, invoice, batch, rename,
+      describe (`cli.py`, `report.py`); batch writes an Excel workbook (`xlsx.py`) or
+      UTF-8 CSV with a BOM, reads ZIP archives (`batch.py`), flags duplicate invoices and,
+      with `--buyer`, invoices for another buyer
+- [x] `ofdkit rename` (`rename.py`): preview by default, `--apply`, `--undo` from the log;
+      never overwrites. It is the only command that changes the user's files; keep it
+      that way, and keep its preview-first default
 - [x] Markdown output and MarkItDown plugin (`markdown.py`, `markitdown_plugin.py`)
 - [x] MCP server (`mcp_server.py`, `ofdkit mcp`): read_ofd_text, read_ofd_invoice,
       ofd_info, list_ofd_invoices; all read-only, optional `--root` folder restriction

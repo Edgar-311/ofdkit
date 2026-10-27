@@ -218,6 +218,20 @@ class ShowTest(unittest.TestCase):
         self.assertIn("重复的只算一次的话，价税合计 106.00 元", out)
         self.assertIn(f"ofdkit batch {self.root} -o 发票汇总.xlsx", out)
 
+    def test_buyer_check(self):
+        out = run(self.invoice("a.ofd"), "--buyer", "测试单位甲")[1]
+        self.assertIn("提醒      购买方不是 测试单位甲（发票上是 空的）", out)
+        self.invoice("b.ofd")
+        out = run(str(self.root), "--buyer", "测试单位甲")[1]
+        self.assertIn("有 2 张发票的购买方不对", out)
+        self.assertIn("--buyer 测试单位甲 -o 发票汇总.xlsx", out)
+        target = self.root / "out.csv"
+        code, _, err = run("batch", str(self.root), "--buyer", "测试单位甲", "-o", str(target))
+        self.assertEqual(code, EXIT_OK)
+        self.assertIn("有 2 张发票的购买方不对", err)
+        rows = list(csv.DictReader(io.StringIO(target.read_text(encoding="utf-8-sig"))))
+        self.assertIn("buyer is not 测试单位甲", rows[0]["warnings"])
+
     def test_missing_file(self):
         code, out, err = run(str(self.root / "missing.ofd"))
         self.assertEqual((code, out), (EXIT_ERROR, ""))

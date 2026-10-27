@@ -11,12 +11,14 @@ from ofdkit.batch import (
     EMPTY_ARCHIVE,
     NO_INVOICE,
     InvoiceFile,
+    buyer_mismatch,
+    check_buyer,
     find_ofd_files,
     item_names,
     problems,
     summary,
 )
-from ofdkit.invoice import Invoice, LineItem
+from ofdkit.invoice import Invoice, LineItem, Party
 
 from .ofdbuilder import OFDBuilder, Text, zip_parts
 
@@ -161,6 +163,40 @@ class TextTest(unittest.TestCase):
             path.write_bytes(invoice_ofd("00000001", "1.00"))
             self.assertEqual(len(ofdkit.read_invoices(str(path))), 1)
             self.assertEqual(len(ofdkit.read_invoices([path, path])), 2)
+
+
+class BuyerTest(unittest.TestCase):
+    invoice = Invoice(buyer=Party(name="测试单位（甲）", tax_id="91000000TEST00001X"))
+
+    def test_names_and_tax_ids(self):
+        self.assertEqual(buyer_mismatch(self.invoice, ["测试单位(甲)", " 91000000test00001x "]), [])
+        self.assertEqual(buyer_mismatch(self.invoice, ["测试单位乙"]), ["测试单位乙"])
+        self.assertEqual(buyer_mismatch(self.invoice, ["91000000TEST00002X"]), ["91000000TEST00002X"])
+        self.assertEqual(buyer_mismatch(Invoice(), ["测试单位甲"]), ["测试单位甲"])
+        self.assertEqual(buyer_mismatch(self.invoice, ["", "  "]), [])
+
+    def test_check_buyer_marks_results(self):
+        results = [
+            InvoiceFile("a.ofd", invoice=self.invoice),
+            InvoiceFile("b.ofd", invoice=Invoice(buyer=Party(name="个人"))),
+            InvoiceFile("c.ofd", error=NO_INVOICE),
+        ]
+        check_buyer(results, ["测试单位（甲）"])
+        self.assertEqual([r.buyer_mismatch for r in results], [[], ["测试单位（甲）"], []])
+        self.assertEqual(problems(results[1]), ["购买方不是 测试单位（甲）（发票上是 个人）"])
+        self.assertIn("buyer is not 测试单位（甲）", batch.invoice_row(results[1])["warnings"])
+        self.assertEqual(summary(results)["buyer_mismatches"], 1)
+
+    def test_tax_id_problem_text(self):
+        result = InvoiceFile("a.ofd", invoice=Invoice(), buyer_mismatch=["91000000TEST00002X"])
+        self.assertEqual(problems(result), ["购买方税号不是 91000000TEST00002X（发票上是 空的）"])
+
+    def test_read_invoices_with_buyer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "a.ofd"
+            path.write_bytes(invoice_ofd("00000001", "1.00"))
+            (result,) = ofdkit.read_invoices(path, buyer=["测试单位甲"])
+        self.assertEqual(result.buyer_mismatch, ["测试单位甲"])
 
 
 if __name__ == "__main__":
