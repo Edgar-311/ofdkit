@@ -74,6 +74,12 @@ anything public or irreversible; otherwise make sensible decisions and report th
   openpyxl to read them back; for layout changes, also open one in LibreOffice
   (`soffice --headless --convert-to html`) and look at it.
 - Every behaviour change comes with a test.
+- CI uses `.github/scripts/run_tests.py` to retain `test-output.txt` and structured
+  `test-results.json`; its Windows jobs require the directory junction tests to pass
+  rather than skip. See `docs/testing.md`. Keep the standard unittest command working.
+- CLI export paths must never replace input documents, including path aliases and
+  hard links. Exports cannot write `.ofd` files. First-run help is in
+  `docs/quickstart.zh-CN.md`; keep its commands consistent with the CLI.
 
 ## Commits
 
