@@ -26,14 +26,21 @@ A lightweight Python toolkit for reading OFD documents (GB/T 33190, the Chinese 
 
 ## 快速上手 / Quick start
 
-1. 安装 [Python](https://www.python.org/downloads/) 3.10 或更新版本。Windows 上安装时请勾选 "Add python.exe to PATH"。
+第一次用命令行？先看 [Windows 新手指南](https://github.com/Edgar-311/ofdkit/blob/main/docs/quickstart.zh-CN.md)：包含普通测试样例、带空格的路径写法、Excel 输出位置和常见报错处理。
+New to the command line? The [Windows beginner guide (Chinese)](https://github.com/Edgar-311/ofdkit/blob/main/docs/quickstart.zh-CN.md) includes a synthetic sample and troubleshooting.
+
+1. 安装 [Python](https://www.python.org/downloads/) 3.10 或更新版本，安装后重新打开终端。
    Install Python 3.10 or newer.
 2. 打开命令行（Windows 在开始菜单搜索"终端"或"cmd"，Mac 打开"终端"），安装 ofdkit：
    Open a terminal and install ofdkit:
 
    ```bash
-   pip install ofdkit
+   python -m pip install --upgrade ofdkit
+   python -m ofdkit --version
    ```
+
+   如果 Windows 上 `python` 不可用而 `py` 可用，把上述 `python` 换成 `py`；macOS / Linux 通常使用 `python3`。下文的 `ofdkit` 命令也可以写成 `python -m ofdkit`，使用与安装时相同的 Python。
+   Use the same Python to install and run. `python -m ofdkit` also works when the `ofdkit` command is not on PATH.
 
 3. 看一张发票（把文件拖进命令行窗口就能填上路径）：
    Show an invoice (drag the file into the terminal window to type its path):
@@ -107,6 +114,9 @@ ofdkit describe 文件.ofd -o 结构.json         # 打码的结构，用于报�
 
 `show`、`batch` 和 `rename` 加 `-r` 会连子文件夹一起找。`ofdkit 文件.ofd` 是 `ofdkit show 文件.ofd` 的简写。
 Add `-r` to `show`, `batch` and `rename` to include subfolders. `ofdkit PATH` is short for `ofdkit show PATH`.
+
+导出时请为 `-o` 选择不同于输入文件的路径，保留原 OFD 和 ZIP。程序会拒绝覆盖输入文件或把导出结果保存为 `.ofd`；已有同名汇总表仍会被替换。
+Exports refuse to replace input files or write an `.ofd` file. Existing output reports are still replaced, so use another name to keep an earlier report.
 
 `ofdkit invoice` 的输出示例（数据是虚构的）/ Example output (fictional data):
 

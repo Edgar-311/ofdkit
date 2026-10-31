@@ -39,6 +39,10 @@ CSV_COLUMNS = COLUMNS
 
 COMMANDS = ("show", "info", "text", "invoice", "batch", "rename", "describe", "mcp")
 
+
+class OutputPathError(ValueError):
+    """An export would replace an input document or create a misleading OFD file."""
+
 EXAMPLES = """\
 例子 / examples:
   ofdkit 发票.ofd                           看一张发票，或者一个文件的文字
@@ -141,6 +145,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except BrokenPipeError:  # output piped into a program that stopped reading, such as head
         _silence_stdout()
         return EXIT_OK
+    except OutputPathError as exc:
+        _say(f"错误：{exc}")
     except FileNotFoundError as exc:
         _say(f"错误：找不到 {exc.filename or exc}")
     except PermissionError as exc:
@@ -235,12 +241,13 @@ def file_info(document: OFDDocument, name: str) -> dict[str, Any]:
 
 
 def _text(args: argparse.Namespace) -> int:
+    output = _output_path(args.output, [Path(args.file)]) if args.output else None
     with OFDDocument(args.file) as document:
         text = document_markdown(document).rstrip("\n") if args.markdown else document.text()
         empty = not document.text().strip() if args.markdown else not text.strip()
         warnings = list(document.warnings)
-    if args.output:
-        Path(args.output).write_text(text + "\n", encoding="utf-8")
+    if output is not None:
+        output.write_text(text + "\n", encoding="utf-8")
     else:
         print(text)
     for warning in warnings:
@@ -268,9 +275,9 @@ def _batch(args: argparse.Namespace) -> int:
         _say("错误：没有找到 .ofd 文件" + ("" if args.recursive or missing else "。要连子文件夹一起找，请加 -r"))
         return EXIT_ERROR
 
+    output = _output_path(args.output, files) if args.output else None
     results = read_invoice_files(files)
     check_buyer(results, args.buyer)
-    output = Path(args.output) if args.output else None
     if output is not None and output.suffix.lower() == ".xlsx":
         from .xlsx import write_invoices_xlsx
 
@@ -372,13 +379,29 @@ def _rename(args: argparse.Namespace) -> int:
 def _describe(args: argparse.Namespace) -> int:
     from .describe import describe
 
+    output = _output_path(args.output, [Path(args.file)]) if args.output else None
     text = json.dumps(describe(args.file), ensure_ascii=False, indent=1)
-    if args.output:
-        Path(args.output).write_text(text + "\n", encoding="utf-8")
+    if output is not None:
+        output.write_text(text + "\n", encoding="utf-8")
         _say(f"已保存到 {args.output}。文字、文件名和号码已经打码，但打码不能保证万无一失，分享之前请再检查一遍。")
     else:
         print(text)
     return EXIT_OK
+
+
+def _output_path(value: str, sources: Sequence[Path]) -> Path:
+    """Check exports before opening them for writing; source files always stay intact."""
+    output = Path(value)
+    resolved = output.resolve()
+    for source in sources:
+        same = resolved == source.resolve()
+        if not same and output.exists() and source.exists():
+            same = os.path.samefile(output, source)  # includes hard links with different names
+        if same:
+            raise OutputPathError(f"输出文件不能与输入文件相同：{value}。请另选一个输出文件名。")
+    if output.suffix.lower() == ".ofd" or resolved.suffix.lower() == ".ofd":
+        raise OutputPathError("导出结果不能保存为 .ofd 文件。请使用 .txt、.json、.csv 或 .xlsx，并保留原 OFD 文件。")
+    return output
 
 
 def _mcp(args: argparse.Namespace) -> int:

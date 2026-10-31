@@ -5,6 +5,21 @@ Notable changes are recorded here, following [Keep a Changelog](https://keepacha
 
 ## [Unreleased]
 
+### Fixed
+
+- `text`, `describe` and `batch` could overwrite their own input when `-o` pointed at
+  the document or ZIP being read. They now reject that output before writing,
+  including different names that are hard links to the same file. Exports also refuse
+  `.ofd` destinations, so a text or spreadsheet export cannot replace another OFD.
+
+### Added
+
+- A Windows beginner guide with a synthetic sample, Python module commands that work
+  without an `ofdkit` PATH entry, output-location help and common error explanations.
+- CI retains readable logs and structured test results for 14 days, and shows pass,
+  failure, error and skip counts in each job's summary. Required Windows directory
+  junction checks must actually pass; missing or skipped checks fail the job.
+
 ## [0.4.0] - 2026-10-28
 
 ### Fixed

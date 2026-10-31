@@ -12,3 +12,5 @@ htmlcov/
 .ruff_cache/
 .DS_Store
 .venv-*/
+test-output.txt
+test-results.json

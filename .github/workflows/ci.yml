@@ -40,8 +40,17 @@ jobs:
           OFD_SAMPLES_DIR: ofd-samples
           PYTHONIOENCODING: utf-8
         run: |
-          set -o pipefail
-          python -m unittest discover -s tests -t . -v 2>&1 | tee test-output.txt
+          python .github/scripts/run_tests.py --require-windows-junctions
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-core
+          path: |
+            test-output.txt
+            test-results.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Show failures on the summary page
         if: failure()
         run: python .github/scripts/annotate_failures.py test-output.txt
@@ -66,8 +75,17 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: |
-          set -o pipefail
-          python -m unittest discover -s tests -t . -v 2>&1 | tee test-output.txt
+          python .github/scripts/run_tests.py --require-windows-junctions
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-py3.12-extras
+          path: |
+            test-output.txt
+            test-results.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Show failures on the summary page
         if: failure()
         run: python .github/scripts/annotate_failures.py test-output.txt
